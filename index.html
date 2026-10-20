@@ -261,6 +261,50 @@
   </form>
 </aside>
 
+<!-- ============ 新建常用内容 ============ -->
+<div class="scrim qscrim" id="qScrim"></div>
+<div class="qsheet" id="qSheet" role="dialog" aria-modal="true" aria-labelledby="qTitle" aria-hidden="true">
+  <header class="qsheet-head">
+    <div class="qhead-l">
+      <h2 id="qTitle">新建常用内容</h2>
+      <p>保存后可一键填入新安排</p>
+    </div>
+    <button class="dr-close" id="qClose" type="button" aria-label="关闭">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#1D1D1F" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </button>
+  </header>
+
+  <div class="hairline"></div>
+
+  <div class="qform">
+    <div class="field">
+      <label class="label" for="qName">名称</label>
+      <input class="input" id="qName" type="text" maxlength="20" placeholder="例如：学习充电、娱乐放松" autocomplete="off" enterkeyhint="done">
+      <div class="qpresets" id="qPresets"></div>
+    </div>
+
+    <div class="field">
+      <div class="label-row">
+        <span class="label">预计时长</span>
+        <span class="value" id="qDurLabel">60 分钟</span>
+      </div>
+      <div class="chips" id="qDurChips"></div>
+    </div>
+
+    <div class="field">
+      <span class="label">优先级</span>
+      <div class="chips chips-prio" id="qPrioChips"></div>
+    </div>
+
+    <p class="form-error" id="qErr" role="alert"></p>
+
+    <div class="qactions">
+      <button class="btn btn-plain" id="qCancel" type="button">取消</button>
+      <button class="btn btn-primary" id="qSave" type="button">添加到常用</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="app.js"></script>

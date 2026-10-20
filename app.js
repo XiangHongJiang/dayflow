@@ -16,11 +16,27 @@
 
   var QUICK_DEFAULT = [
     { title: '晨间回顾与排程', dur: 15, priority: 'low' },
+    { title: '学习充电', dur: 60, priority: 'mid' },
     { title: '深度工作', dur: 90, priority: 'high' },
     { title: '团队同步', dur: 60, priority: 'mid' },
-    { title: '处理邮件与消息', dur: 30, priority: 'low' },
-    { title: '日终整理与复盘', dur: 30, priority: 'low' }
+    { title: '吃饭与休息', dur: 45, priority: 'low' },
+    { title: '娱乐放松', dur: 45, priority: 'low' },
+    { title: '午休', dur: 30, priority: 'low' }
   ];
+
+  /* 旧版默认值：命中时升级为新的默认清单（仅一次） */
+  var QUICK_LEGACY = ['晨间回顾与排程', '深度工作', '团队同步', '处理邮件与消息', '日终整理与复盘'];
+
+  /* 新建常用内容时的快捷预设 */
+  var Q_PRESETS = [
+    { title: '学习充电', dur: 60, priority: 'mid' },
+    { title: '娱乐放松', dur: 45, priority: 'low' },
+    { title: '午休', dur: 30, priority: 'low' },
+    { title: '吃饭', dur: 45, priority: 'low' },
+    { title: '运动', dur: 45, priority: 'mid' },
+    { title: '阅读', dur: 30, priority: 'low' }
+  ];
+  var QUICK_MAX = 24;
 
   var CHECK_SVG = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1.5 5.2l2.4 2.4L8.6 2.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   var PLUS_SVG = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="#7A7A7A" stroke-width="1.2" stroke-linecap="round"/></svg>';
@@ -90,7 +106,11 @@
         if (q && q.title) out.quick.push({ title: String(q.title).slice(0, 40), dur: clampNum(q.dur, 5, 720, 30), priority: PRIO_LABEL[q.priority] ? q.priority : 'low' });
       });
     }
-    if (!out.quick.length) out.quick = QUICK_DEFAULT.slice();
+    if (!out.quick.length) {
+      out.quick = QUICK_DEFAULT.map(function (q) { return { title: q.title, dur: q.dur, priority: q.priority }; });
+    } else if (isLegacyQuick(out.quick)) {
+      out.quick = QUICK_DEFAULT.map(function (q) { return { title: q.title, dur: q.dur, priority: q.priority }; });
+    }
     if (raw && (raw.filter === 'all' || raw.filter === 'todo' || raw.filter === 'done')) out.filter = raw.filter;
     if (raw && (raw.view === 'timeline' || raw.view === 'list')) out.view = raw.view;
     if (raw && typeof raw.seeded === 'boolean') out.seeded = raw.seeded;
@@ -101,6 +121,15 @@
     v = Number(v);
     if (!isFinite(v)) return dflt;
     return Math.min(max, Math.max(min, Math.round(v)));
+  }
+
+  /* 已存数据是否正好是旧版默认清单 */
+  function isLegacyQuick(list) {
+    if (!list || list.length !== QUICK_LEGACY.length) return false;
+    for (var i = 0; i < QUICK_LEGACY.length; i++) {
+      if (!list[i] || list[i].title !== QUICK_LEGACY[i]) return false;
+    }
+    return true;
   }
 
   function load() {
@@ -116,7 +145,7 @@
   }
 
   var S = load();
-  var ui = { editingId: null, draft: null, q: '', managing: false, confirmDelete: false, deleteTimer: 0 };
+  var ui = { editingId: null, draft: null, quickDraft: null, q: '', managing: false, confirmDelete: false, deleteTimer: 0 };
 
   /* ---------------- 数据查询 ---------------- */
 
@@ -228,19 +257,36 @@
   /* ---------------- 渲染：常用内容 ---------------- */
 
   function renderQuick() {
-    el.railQuick.innerHTML = S.quick.map(function (q, i) {
-      return '<button type="button" class="quick-item" data-quick-open="' + i + '" aria-label="用 ' + esc(q.title) + ' 新建安排">' +
+    var managing = ui.managing;
+
+    var rows = S.quick.map(function (q, i) {
+      return '<button type="button" class="quick-item' + (managing ? ' managing' : '') + '"' +
+        (managing ? '' : ' data-quick-open="' + i + '"') +
+        ' aria-label="' + (managing ? '移除 ' : '用 ') + esc(q.title) + (managing ? '' : ' 新建安排') + '">' +
         '<span class="quick-dur">' + q.dur + 'm</span>' +
         '<span class="quick-name">' + esc(q.title) + '</span>' +
-        '<span class="quick-add" ' + (ui.managing ? 'data-quick-del="' + i + '"' : '') + '>' +
-        (ui.managing ? X_SVG : PLUS_SVG) + '</span>' +
+        '<span class="quick-add"' + (managing ? ' data-quick-del="' + i + '" role="button" aria-label="移除"' : '') + '>' +
+        (managing ? X_SVG : PLUS_SVG) + '</span>' +
         '</button>';
     }).join('');
 
-    el.quickChips.innerHTML = S.quick.map(function (q, i) {
+    if (!managing && S.quick.length < QUICK_MAX) {
+      rows += '<button type="button" class="quick-new" data-quick-new>' + PLUS_SVG + '新建常用内容</button>';
+    }
+    el.railQuick.innerHTML = rows;
+
+    var mg = $('#quickManage');
+    if (mg) mg.textContent = managing ? '完成' : '管理';
+
+    el.quickChips.innerHTML = quickChipsHTML();
+  }
+
+  function quickChipsHTML() {
+    return S.quick.map(function (q, i) {
       return '<button type="button" class="chip-opt" data-quick-fill="' + i + '">' + esc(q.title) +
         ' <span style="color:var(--ink-3);font-size:10px">' + q.dur + 'm</span></button>';
-    }).join('');
+    }).join('') +
+      (S.quick.length < QUICK_MAX ? '<button type="button" class="chip-opt chip-add" data-quick-new>＋ 新增</button>' : '');
   }
 
   /* ---------------- 渲染：近 7 天 ---------------- */
@@ -617,10 +663,110 @@
 
   function renderDrawerChips() {
     updateDurChips();
-    el.quickChips.innerHTML = S.quick.map(function (q, i) {
-      return '<button type="button" class="chip-opt" data-quick-fill="' + i + '">' + esc(q.title) +
-        ' <span style="color:var(--ink-3);font-size:10px">' + q.dur + 'm</span></button>';
+    el.quickChips.innerHTML = quickChipsHTML();
+  }
+
+  /* ---------------- 新建常用内容 ---------------- */
+
+  var qSheet = $('#qSheet'), qScrim = $('#qScrim'), qName = $('#qName');
+  var qDurChips = $('#qDurChips'), qPrioChips = $('#qPrioChips');
+  var qDurLabel = $('#qDurLabel'), qErr = $('#qErr'), qPresets = $('#qPresets');
+  var Q_DURS = [15, 30, 45, 60, 90, 120];
+
+  function durText(min) {
+    if (min >= 60 && min % 60 === 0) return (min / 60) + ' 小时';
+    if (min >= 60) return Math.floor(min / 60) + ' 小时 ' + (min % 60) + ' 分钟';
+    return min + ' 分钟';
+  }
+
+  function prioDot(k) {
+    return k === 'high' ? 'var(--high)' : k === 'mid' ? 'var(--mid)' : 'var(--low)';
+  }
+
+  function openQuickSheet(preset) {
+    ui.quickDraft = { dur: 60, priority: 'low' };
+    if (preset) {
+      ui.quickDraft.dur = preset.dur;
+      ui.quickDraft.priority = preset.priority;
+    }
+    qName.value = preset ? preset.title : '';
+    qErr.textContent = '';
+    qErr.classList.remove('show');
+    renderQuickSheet();
+    qSheet.classList.add('show');
+    qSheet.setAttribute('aria-hidden', 'false');
+    qScrim.classList.add('show');
+    document.body.classList.add('no-scroll');
+    setTimeout(function () { qName.focus(); qName.select(); }, 240);
+  }
+
+  function closeQuickSheet() {
+    qSheet.classList.remove('show');
+    qSheet.setAttribute('aria-hidden', 'true');
+    qScrim.classList.remove('show');
+    if (!drawer.classList.contains('show')) document.body.classList.remove('no-scroll');
+    ui.quickDraft = null;
+  }
+
+  function renderQuickSheet() {
+    var d = ui.quickDraft;
+    if (!d) return;
+
+    qDurLabel.textContent = durText(d.dur);
+
+    qDurChips.innerHTML = Q_DURS.map(function (v) {
+      return '<button type="button" class="chip-opt' + (d.dur === v ? ' on' : '') + '" data-qdur="' + v + '">' +
+        (v >= 60 ? (v / 60) + ' 小时' : v + ' 分钟') + '</button>';
     }).join('');
+
+    qPrioChips.innerHTML = ['low', 'mid', 'high'].map(function (k) {
+      return '<button type="button" class="chip-opt prio-' + k + (d.priority === k ? ' on' : '') + '" data-qprio="' + k + '">' +
+        '<i class="dot" style="background:' + prioDot(k) + '"></i>' + PRIO_LABEL[k] + '</button>';
+    }).join('');
+
+    qPresets.innerHTML = Q_PRESETS.map(function (p, i) {
+      return '<button type="button" class="qpreset" data-qpreset="' + i + '">' + esc(p.title) + ' · ' + p.dur + 'm</button>';
+    }).join('');
+  }
+
+  function saveQuickItem() {
+    var d = ui.quickDraft;
+    if (!d) return;
+
+    var name = (qName.value || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+    if (!name) {
+      qErr.textContent = '先给这条常用内容起个名字';
+      qErr.classList.add('show');
+      qName.focus();
+      return;
+    }
+
+    var idx = -1;
+    for (var i = 0; i < S.quick.length; i++) {
+      if (S.quick[i].title === name) { idx = i; break; }
+    }
+
+    if (idx > -1) {
+      S.quick[idx].dur = d.dur;
+      S.quick[idx].priority = d.priority;
+      save();
+      renderQuick();
+      closeQuickSheet();
+      toast('已更新「' + name + '」');
+      return;
+    }
+
+    if (S.quick.length >= QUICK_MAX) {
+      qErr.textContent = '常用内容最多 ' + QUICK_MAX + ' 条，先移除几条再添加';
+      qErr.classList.add('show');
+      return;
+    }
+
+    S.quick.push({ title: name, dur: d.dur, priority: d.priority });
+    save();
+    renderQuick();
+    closeQuickSheet();
+    toast('已添加「' + name + '」到常用内容');
   }
 
   function showError(msg) {
@@ -727,7 +873,7 @@
   /* ---------------- 全局事件 ---------------- */
 
   document.addEventListener('click', function (e) {
-    var el2 = e.target.closest('[data-filter],[data-view],[data-check],[data-edit],[data-gap],[data-soon],[data-quick-open],[data-quick-fill],[data-quick-del],[data-manage],[data-dur],[data-dur-custom],[data-prio]');
+    var el2 = e.target.closest('[data-filter],[data-view],[data-check],[data-edit],[data-gap],[data-soon],[data-quick-open],[data-quick-fill],[data-quick-del],[data-quick-new],[data-qdur],[data-qprio],[data-qpreset],[data-manage],[data-dur],[data-dur-custom],[data-prio]');
     if (!el2) return;
     var d = el2.dataset;
 
@@ -735,6 +881,32 @@
     if (d.filter) { setFilter(d.filter); return; }
     if (d.view) { setView(d.view); return; }
     if (d.edit) { openDrawer(byId(d.edit), null); return; }
+    if (d.quickNew !== undefined) { openQuickSheet(null); return; }
+    if (d.qdur) {
+      if (!ui.quickDraft) return;
+      ui.quickDraft.dur = parseInt(d.qdur, 10);
+      qErr.classList.remove('show');
+      renderQuickSheet();
+      return;
+    }
+    if (d.qprio) {
+      if (!ui.quickDraft) return;
+      ui.quickDraft.priority = d.qprio;
+      renderQuickSheet();
+      return;
+    }
+    if (d.qpreset) {
+      var qp = Q_PRESETS[+d.qpreset];
+      if (qp && ui.quickDraft) {
+        ui.quickDraft.dur = qp.dur;
+        ui.quickDraft.priority = qp.priority;
+        qName.value = qp.title;
+        qErr.classList.remove('show');
+        renderQuickSheet();
+        qName.focus();
+      }
+      return;
+    }
     if (d.gap) {
       var start = parseInt(d.gap, 10);
       openDrawer(null, { start: start, end: start + 30 });
@@ -768,7 +940,6 @@
     if (d.manage) {
       ui.managing = !ui.managing;
       renderQuick();
-      el.railQuick.style.paddingBottom = ui.managing ? '' : '';
       toast(ui.managing ? '点击右侧 × 移除常用内容' : '已退出管理');
       return;
     }
@@ -817,7 +988,10 @@
   scrim.addEventListener('click', closeDrawer);
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && drawer.classList.contains('show')) closeDrawer();
+    if (e.key === 'Escape') {
+      if (qSheet.classList.contains('show')) { closeQuickSheet(); return; }
+      if (drawer.classList.contains('show')) { closeDrawer(); return; }
+    }
     if (!drawer.classList.contains('show') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
       !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) {
       goDay(e.key === 'ArrowLeft' ? -1 : 1);
@@ -834,6 +1008,18 @@
     ui.managing = !ui.managing;
     renderQuick();
     toast(ui.managing ? '点击右侧 × 移除常用内容' : '已退出管理');
+  });
+
+  /* 新建常用内容：弹层 */
+  $('#qSave').addEventListener('click', saveQuickItem);
+  $('#qCancel').addEventListener('click', closeQuickSheet);
+  $('#qClose').addEventListener('click', closeQuickSheet);
+  qScrim.addEventListener('click', closeQuickSheet);
+  qName.addEventListener('input', function () {
+    if (qErr.classList.contains('show') && qName.value.trim()) qErr.classList.remove('show');
+  });
+  qName.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); saveQuickItem(); }
   });
   $('#autoBtn').addEventListener('click', autoSchedule);
 
