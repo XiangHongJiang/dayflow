@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DayFlow">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="DayFlow · 按时间线安排一天的轻量待办应用，数据保存在本地。">
+<title>DayFlow · 日常时间安排</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ 移动端导航 ============ -->
+  <header class="mnav">
+    <span class="wordmark">DayFlow</span>
+    <div class="mnav-r">
+      <button class="micon" id="mSearchBtn" type="button" aria-label="搜索安排" aria-expanded="false">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true"><circle cx="7.4" cy="7.4" r="5.1" stroke="currentColor" stroke-width="1.4"/><path d="M11.3 11.3l3.4 3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+      <div class="avatar" aria-hidden="true">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4" r="2.2" stroke="#fff" stroke-width="1.1"/><path d="M1.6 10.6c0-2.1 2-3.4 4.4-3.4s4.4 1.3 4.4 3.4" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ 桌面端导航 ============ -->
+  <header class="dnav">
+    <div class="dnav-l">
+      <span class="wordmark">DayFlow</span>
+      <nav class="dnav-links" aria-label="主导航">
+        <button class="dlink on" type="button">今日</button>
+        <button class="dlink" type="button" data-soon>本周</button>
+        <button class="dlink" type="button" data-soon>回顾</button>
+      </nav>
+    </div>
+    <div class="dnav-r">
+      <span class="dnav-date" id="dNavDate">10月19日 周一 · 上海</span>
+      <div class="avatar" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.6" r="2.6" stroke="#fff" stroke-width="1.2"/><path d="M2 12.4c0-2.5 2.2-4 5-4s5 1.5 5 4" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ 移动端头部 ============ -->
+  <div class="mhead">
+    <div class="mhead-row">
+      <h1 class="mdate" id="mDate" tabindex="0" role="button" aria-label="选择日期">10月19日</h1>
+      <span class="mweek" id="mWeek">周一 · 今天</span>
+      <span class="mpill" id="mPill">50%</span>
+      <button class="mview" id="mViewBtn" type="button" aria-label="切换到列表视图">
+        <span class="mview-bg" aria-hidden="true"></span>
+        <span class="mview-ic" id="mViewIc"></span>
+      </button>
+    </div>
+    <div class="mbar"><i id="mBarFill" style="width:50%"></i></div>
+  </div>
+
+  <!-- 移动端搜索条 -->
+  <div class="msearch" id="mSearch">
+    <svg width="14" height="14" viewBox="0 0 17 17" fill="none" aria-hidden="true"><circle cx="7.4" cy="7.4" r="5.1" stroke="#A1A1A6" stroke-width="1.4"/><path d="M11.3 11.3l3.4 3.4" stroke="#A1A1A6" stroke-width="1.4" stroke-linecap="round"/></svg>
+    <input id="mSearchInput" type="search" placeholder="搜索今天的安排" autocomplete="off" aria-label="搜索今天的安排">
+    <button type="button" id="mSearchClear" aria-label="清除搜索">清除</button>
+  </div>
+
+  <!-- ============ 桌面端子导航 ============ -->
+  <div class="dsub">
+    <div class="dsub-l">
+      <button class="round-btn" id="prevDay" type="button" aria-label="前一天">
+        <svg width="9" height="12" viewBox="0 0 9 12" fill="none"><path d="M7 1L2 6l5 5" stroke="#1D1D1F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h1 class="ddate" id="dDate">10月19日</h1>
+      <span class="dweek" id="dWeek">周一 · 今天</span>
+      <button class="round-btn" id="nextDay" type="button" aria-label="后一天">
+        <svg width="9" height="12" viewBox="0 0 9 12" fill="none"><path d="M2 1l5 5-5 5" stroke="#1D1D1F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="dsub-r">
+      <div class="vseg" id="viewSeg" role="tablist" aria-label="视图切换">
+        <button class="vseg-item on" type="button" data-view="timeline" role="tab" aria-selected="true">时间线</button>
+        <button class="vseg-item" type="button" data-view="list" role="tab" aria-selected="false">列表</button>
+      </div>
+      <button class="btn btn-primary" id="newBtn" type="button">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1v9M1 5.5h9" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
+        新建安排
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ 主体 ============ -->
+  <div class="body">
+    <!-- 左栏（仅桌面） -->
+    <aside class="rail">
+
+      <section class="card">
+        <div class="card-head">
+          <h2>今日进度</h2>
+          <button class="link" type="button" data-soon>查看本周</button>
+        </div>
+        <div class="stat-row">
+          <div class="stat-num"><b id="rPct">50</b><i>%</i></div>
+          <span class="stat-sub" id="rDone">4 / 8 项已完成</span>
+        </div>
+        <div class="bar"><i id="rBar" style="width:50%"></i></div>
+        <div class="hairline"></div>
+        <div class="meta3">
+          <div><b id="rSched">8h00</b><span>今日已安排</span></div>
+          <div><b id="rLeft">4h30</b><span>待完成</span></div>
+          <div><b id="rHigh">3 项</b><span>高优先级</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>筛选</h2>
+          <span class="muted" id="rCount">共 8 项</span>
+        </div>
+        <div class="fseg" id="railFilter" role="tablist" aria-label="按状态筛选"></div>
+      </section>
+
+      <section class="card card-quick">
+        <div class="card-head">
+          <h2>常用内容</h2>
+          <button class="link" type="button" id="quickManage">管理</button>
+        </div>
+        <div class="quick-list" id="railQuick"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>近 7 天完成度</h2>
+          <span class="muted" id="weekAvg">平均 71%</span>
+        </div>
+        <div class="bars" id="weekBars"></div>
+      </section>
+
+      <section class="tip-card">
+        <div class="tip-h">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M6.5 1l1.4 3.6L11.5 6l-3.6 1.4L6.5 11 5.1 7.4 1.5 6l3.6-1.4L6.5 1z" fill="#2997FF"/></svg>
+          <span>小技巧</span>
+        </div>
+        <p>点击卡片可编辑时间与详情；点击空闲时段即可快速新建安排，数据自动保存在本地。</p>
+      </section>
+
+    </aside>
+
+    <!-- 主区 -->
+    <main class="main">
+
+      <div class="mfilter" id="mFilterWrap" role="tablist" aria-label="按状态筛选"></div>
+
+      <section class="tl-card" id="mainCard">
+        <header class="tl-head">
+          <div class="tl-head-l">
+            <h2 id="mainTitle">今日时间线</h2>
+            <p id="mainSub">8 项安排 · 预计 8 小时 · 08:00 – 19:00</p>
+          </div>
+          <div class="tl-head-r">
+            <span class="chip" id="freeChip">空闲 2h30</span>
+            <button class="link" type="button" id="autoBtn">自动排程</button>
+          </div>
+        </header>
+        <div class="hairline" id="mainHairline"></div>
+        <div class="tl-body" id="tlBody"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <button class="fab" id="fab" type="button" aria-label="新建安排">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v12M3 9h12" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<input type="date" id="datePicker" class="sr-only" tabindex="-1" aria-hidden="true">
+
+<!-- ============ 新建 / 编辑 抽屉 ============ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drTitle" aria-hidden="true">
+  <div class="drawer-grab" aria-hidden="true"></div>
+
+  <header class="dr-head">
+    <div class="dr-head-l">
+      <h2 id="drTitle">新建安排</h2>
+      <p id="drSub">今天 · 10月19日 周一</p>
+    </div>
+    <button class="dr-close" id="drClose" type="button" aria-label="关闭">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#1D1D1F" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </button>
+  </header>
+
+  <div class="hairline"></div>
+
+  <form class="dr-form" id="taskForm" novalidate>
+    <div class="field">
+      <label class="label" for="fTitle">标题</label>
+      <input class="input" id="fTitle" type="text" maxlength="40" placeholder="要做什么？" autocomplete="off" enterkeyhint="done">
+    </div>
+
+    <div class="field">
+      <label class="label" for="fDesc">描述</label>
+      <textarea class="input textarea" id="fDesc" rows="2" maxlength="120" placeholder="补充细节（可选）"></textarea>
+    </div>
+
+    <div class="field">
+      <div class="label-row">
+        <span class="label">预计时长</span>
+        <span class="value" id="durLabel">30 分钟</span>
+      </div>
+      <div class="chips" id="durChips"></div>
+    </div>
+
+    <div class="field">
+      <span class="label">优先级</span>
+      <div class="chips chips-prio" id="prioChips"></div>
+    </div>
+
+    <div class="field">
+      <div class="label-row">
+        <span class="label">时间段</span>
+        <span class="value" id="rangeLabel">16:30 – 18:00</span>
+      </div>
+      <div class="time-inputs">
+        <label class="time-box">
+          <span>开始</span>
+          <input id="fStart" type="time" step="300" required>
+        </label>
+        <span class="dash" aria-hidden="true">–</span>
+        <label class="time-box">
+          <span>结束</span>
+          <input id="fEnd" type="time" step="300" required>
+        </label>
+      </div>
+      <div class="ruler" id="ruler">
+        <div class="ruler-sel" id="rulerSel"></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label-row">
+        <span class="label">常用内容</span>
+        <span class="value muted">点击快速填充</span>
+      </div>
+      <div class="chips" id="quickChips"></div>
+    </div>
+
+    <p class="form-error" id="formError" role="alert"></p>
+
+    <div class="dr-actions">
+      <button class="btn btn-danger" id="deleteBtn" type="button" hidden>删除</button>
+      <span class="dr-note" id="drNote">更改将实时保存到本地</span>
+      <button class="btn btn-primary" type="submit">保存安排</button>
+    </div>
+  </form>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
