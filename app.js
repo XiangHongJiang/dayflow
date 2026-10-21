@@ -8,6 +8,7 @@
   /* ---------------- 常量 ---------------- */
 
   var LS_KEY = 'dayflow.v1';
+  var SEED_VERSION = 2;      // 2 起不再默认写入示例安排
   var DAY_START = 8 * 60;    // 08:00
   var DAY_END = 19 * 60;     // 19:00
 
@@ -48,6 +49,7 @@
   /* ---------------- 工具 ---------------- */
 
   function $(sel, root) { return (root || document).querySelector(sel); }
+  function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function pad(n) { return String(n).padStart(2, '0'); }
   function uid() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
@@ -85,7 +87,7 @@
   }
 
   function normalize(raw) {
-    var out = { tasks: [], quick: [], filter: 'all', view: 'timeline', date: todayKey(), seeded: true };
+    var out = { tasks: [], quick: [], filter: 'all', view: 'timeline', date: todayKey(), seeded: true, seedv: SEED_VERSION };
     if (raw && Array.isArray(raw.tasks)) {
       raw.tasks.forEach(function (t) {
         if (!t || !t.title) return;
@@ -111,9 +113,11 @@
     } else if (isLegacyQuick(out.quick)) {
       out.quick = QUICK_DEFAULT.map(function (q) { return { title: q.title, dur: q.dur, priority: q.priority }; });
     }
+    if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw.date)) out.date = raw.date;
     if (raw && (raw.filter === 'all' || raw.filter === 'todo' || raw.filter === 'done')) out.filter = raw.filter;
     if (raw && (raw.view === 'timeline' || raw.view === 'list')) out.view = raw.view;
     if (raw && typeof raw.seeded === 'boolean') out.seeded = raw.seeded;
+    if (raw && typeof raw.seedv === 'number') out.seedv = raw.seedv;
     return out;
   }
 
@@ -132,12 +136,37 @@
     return true;
   }
 
+  /* 旧版默认写入的示例安排（用于一次性清空老用户数据） */
+  var DEMO_TITLES = ['晨间回顾与排程', '深度工作：季度复盘初稿', '处理邮件与消息', '午餐与散步',
+    '产品周会', '与设计团队同步', '撰写复盘结论与行动项', '日终整理与复盘'];
+
   function load() {
     try {
       var raw = localStorage.getItem(LS_KEY);
-      if (raw) return normalize(JSON.parse(raw));
+      if (raw) {
+        var data = JSON.parse(raw);
+        if (data && !data.seedv) {
+          // 老版本首次打开会自动塞入示例：命中纯示例数据时清空，让用户从空白开始
+          if (isDemoTaskSet(data.tasks)) data.tasks = [];
+          data.seedv = SEED_VERSION;
+        }
+        return normalize(data);
+      }
     } catch (e) { /* 忽略损坏数据 */ }
-    return normalize({ tasks: seedTasks(), quick: QUICK_DEFAULT.slice(), seeded: false });
+    return normalize({ tasks: [], quick: QUICK_DEFAULT.slice(), seeded: true, seedv: SEED_VERSION });
+  }
+
+  function isDemoTaskSet(list) {
+    if (!Array.isArray(list) || list.length !== DEMO_TITLES.length) return false;
+    var pool = DEMO_TITLES.slice();
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i];
+      if (!t || DEMO_TITLES.indexOf(t.title) < 0) return false;
+      var at = pool.indexOf(t.title);
+      if (at < 0) return false;
+      pool.splice(at, 1);
+    }
+    return pool.length === 0;
   }
 
   function save() {
@@ -145,7 +174,7 @@
   }
 
   var S = load();
-  var ui = { editingId: null, draft: null, quickDraft: null, q: '', managing: false, confirmDelete: false, deleteTimer: 0 };
+  var ui = { editingId: null, draft: null, quickDraft: null, q: '', managing: false, confirmDelete: false, deleteTimer: 0, confirmClear: false, clearTimer: 0 };
 
   /* ---------------- 数据查询 ---------------- */
 
@@ -207,8 +236,10 @@
     railFilter: $('#railFilter'), mFilterWrap: $('#mFilterWrap'),
     railQuick: $('#railQuick'), quickChips: $('#quickChips'),
     tlBody: $('#tlBody'), mainTitle: $('#mainTitle'), mainSub: $('#mainSub'),
-    freeChip: $('#freeChip'), mViewIc: $('#mViewIc'),
-    mViewBtn: $('#mViewBtn'), mainCard: $('#mainCard')
+    freeChip: $('#freeChip'), mFreeChip: $('#mFreeChip'), mViewIc: $('#mViewIc'),
+    mViewBtn: $('#mViewBtn'), mainCard: $('#mainCard'),
+    todayBtn: $('#todayBtn'), mTodayBtn: $('#mTodayBtn'),
+    rProgressTitle: $('#rProgressTitle'), rSchedLabel: $('#rSchedLabel')
   };
 
   function renderDate() {
@@ -222,6 +253,10 @@
     if (el.dWeek) el.dWeek.textContent = week;
     if (el.mWeek) el.mWeek.textContent = week;
     if (el.dNavDate) el.dNavDate.textContent = label + ' ' + WEEK[d.getDay()];
+    if (el.todayBtn) el.todayBtn.hidden = today;
+    if (el.mTodayBtn) el.mTodayBtn.hidden = today;
+    if (el.rProgressTitle) el.rProgressTitle.textContent = today ? '今日进度' : '当日进度';
+    if (el.rSchedLabel) el.rSchedLabel.textContent = today ? '今日已安排' : '已安排';
     document.title = label + ' · DayFlow';
   }
 
@@ -325,7 +360,8 @@
   }
 
   function gapLabel(min) {
-    return isMobile() ? '空闲 ' + min + ' 分钟 · 可添加安排' : '空闲时段 · 可添加安排';
+    if (!isMobile()) return '空闲时段 · 可添加安排';
+    return '空闲 ' + hDur(min) + ' · 可添加安排';
   }
 
   function taskRowHTML(t) {
@@ -440,13 +476,14 @@
 
   function emptyHTML() {
     var noTasks = dayTasks().length === 0;
+    var isToday = S.date === todayKey();
     if (noTasks) {
       return '<div class="empty">' +
         '<div class="empty-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#A1A1A6" stroke-width="1.3"/><path d="M12 7v5.2l3.2 2" stroke="#A1A1A6" stroke-width="1.3" stroke-linecap="round"/></svg></div>' +
-        '<h3>今天还没有安排</h3>' +
-        '<p>把要做的事情放进时间线，一天会清楚很多。</p>' +
-        '<button type="button" class="btn btn-primary" id="emptyNew">新建第一个安排</button>' +
-        '<button type="button" class="btn btn-quiet" id="emptyDemo">载入示例安排</button>' +
+        '<h3>' + (isToday ? '今天还没有安排' : cnDate(parseKey(S.date)) + ' 还没有安排') + '</h3>' +
+        '<p>' + (isToday ? '把要做的事情放进时间线，一天会清楚很多。' : '可以提前把计划排进这一天。') + '</p>' +
+        '<button type="button" class="btn btn-primary" id="emptyNew">' + (isToday ? '新建第一个安排' : '为这天添加安排') + '</button>' +
+        (isToday ? '<button type="button" class="btn btn-quiet" id="emptyDemo">载入示例安排</button>' : '') +
         '</div>';
     }
     return '<div class="empty">' +
@@ -460,14 +497,19 @@
   function renderMain() {
     var list = visibleTasks();
     var isEmpty = list.length === 0;
+    var isToday = S.date === todayKey();
+    var title = S.view === 'list'
+      ? (isToday ? '今日安排' : '当日安排')
+      : (isToday ? '今日时间线' : '当日时间线');
 
     el.tlBody.className = 'tl-body' + (S.view === 'list' ? ' list-body' : '');
 
     if (isEmpty) {
       el.tlBody.innerHTML = emptyHTML();
-      el.mainTitle.textContent = S.view === 'list' ? '今日安排' : '今日时间线';
+      el.mainTitle.textContent = title;
       el.mainSub.textContent = '0 项安排 · 08:00 – 19:00';
       el.freeChip.textContent = '空闲 ' + hDur(DAY_END - DAY_START);
+      el.mFreeChip.textContent = el.freeChip.textContent;
       bindEmptyActions();
       return;
     }
@@ -475,9 +517,10 @@
     el.tlBody.innerHTML = S.view === 'list' ? renderList(list) : renderTimeline(list);
 
     var s = stats();
-    el.mainTitle.textContent = S.view === 'list' ? '今日安排' : '今日时间线';
+    el.mainTitle.textContent = title;
     el.mainSub.textContent = s.total + ' 项安排 · 预计 ' + Math.round(s.scheduled / 60) + ' 小时 · 08:00 – 19:00';
     el.freeChip.textContent = '空闲 ' + hDur(freeMinutes());
+    el.mFreeChip.textContent = el.freeChip.textContent;
   }
 
   function bindEmptyActions() {
@@ -516,6 +559,8 @@
     renderQuick();
     renderWeek();
     renderMain();
+    updateClearState();
+    syncClearLabels();
     updateViewToggle();
   }
 
@@ -541,7 +586,7 @@
 
   function defaultStart() {
     var list = sortedDay();
-    var s = Math.max(DAY_START, Math.ceil(nowMin() / 15) * 15);
+    var s = S.date === todayKey() ? Math.max(DAY_START, Math.ceil(nowMin() / 15) * 15) : DAY_START;
     list.forEach(function (t) {
       if (s < t.start + t.dur) s = t.start + t.dur;
     });
@@ -1021,18 +1066,36 @@
   qName.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); saveQuickItem(); }
   });
-  $('#autoBtn').addEventListener('click', autoSchedule);
+  $$('[data-auto]').forEach(function (b) { b.addEventListener('click', autoSchedule); });
+  $$('[data-clear]').forEach(function (b) { b.addEventListener('click', clearToday); });
 
-  /* 日期选择 */
+  /* 日期选择：点日期标题唤起原生日历，← → 键切换前一天 / 后一天 */
   var datePicker = $('#datePicker');
-  el.mDate.addEventListener('click', function () {
+  function openPicker() {
     datePicker.value = S.date;
     if (datePicker.showPicker) { try { datePicker.showPicker(); return; } catch (err) { } }
     datePicker.click();
+  }
+  [el.dDate, el.mDate].forEach(function (node) {
+    if (!node) return;
+    node.addEventListener('click', openPicker);
+    node.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); }
+    });
   });
   datePicker.addEventListener('change', function () {
-    if (datePicker.value) { S.date = datePicker.value; save(); renderAll(); }
+    if (datePicker.value) { S.date = datePicker.value; ui.q = ''; $('#mSearchInput').value = ''; save(); renderAll(); }
   });
+
+  function goToday() {
+    if (S.date === todayKey()) return;
+    S.date = todayKey();
+    save();
+    renderAll();
+    toast('已回到今天');
+  }
+  if (el.todayBtn) el.todayBtn.addEventListener('click', goToday);
+  if (el.mTodayBtn) el.mTodayBtn.addEventListener('click', goToday);
 
   /* 移动搜索 */
   var mSearch = $('#mSearch'), mSearchInput = $('#mSearchInput');
@@ -1053,6 +1116,48 @@
   });
 
   /* 自动排程：把未完成项顺次填入已完成项之间的空档 */
+  /* ---------------- 一键清空今日安排 ---------------- */
+
+  function syncClearLabels() {
+    $$('[data-clear]').forEach(function (b) {
+      b.textContent = ui.confirmClear ? '确认清空？' : '一键清空';
+      b.classList.toggle('danger', ui.confirmClear);
+    });
+  }
+
+  function updateClearState() {
+    var has = dayTasks().length > 0;
+    $$('[data-clear]').forEach(function (b) {
+      b.disabled = !has;
+      b.classList.toggle('is-off', !has);
+    });
+  }
+
+  function resetClear() {
+    clearTimeout(ui.clearTimer);
+    ui.confirmClear = false;
+    syncClearLabels();
+  }
+
+  function clearToday() {
+    var list = dayTasks();
+    if (!list.length) { toast('今天还没有安排'); return; }
+    if (!ui.confirmClear) {
+      ui.confirmClear = true;
+      syncClearLabels();
+      clearTimeout(ui.clearTimer);
+      ui.clearTimer = setTimeout(resetClear, 3200);
+      toast('再点一次「确认清空」将删除今天全部安排');
+      return;
+    }
+    var n = list.length;
+    resetClear();
+    S.tasks = S.tasks.filter(function (t) { return t.date !== S.date; });
+    save();
+    renderAll();
+    toast('已清空今天 ' + n + ' 项安排');
+  }
+
   function autoSchedule() {
     var todo = dayTasks().filter(function (t) { return !t.done; }).sort(function (a, b) { return a.start - b.start; });
     if (!todo.length) { toast('没有待安排的未完成事项'); return; }
@@ -1060,7 +1165,7 @@
       .map(function (t) { return { s: t.start, e: t.start + t.dur }; })
       .sort(function (a, b) { return a.s - b.s; });
 
-    var cursor = Math.max(DAY_START, Math.ceil(nowMin() / 15) * 15);
+    var cursor = S.date === todayKey() ? Math.max(DAY_START, Math.ceil(nowMin() / 15) * 15) : DAY_START;
     todo.forEach(function (t) {
       var guard = 0, moved = true;
       while (moved && guard < 40) {
@@ -1096,10 +1201,4 @@
   buildRuler();
   renderAll();
   setTimeout(function () { document.body.classList.remove('booting'); }, 700);
-
-  if (!S.seeded) {
-    S.seeded = true;
-    save();
-    setTimeout(function () { toast('已载入今天的示例安排，可自由编辑或删除'); }, 700);
-  }
 })();

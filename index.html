@@ -54,6 +54,7 @@
     <div class="mhead-row">
       <h1 class="mdate" id="mDate" tabindex="0" role="button" aria-label="选择日期">10月19日</h1>
       <span class="mweek" id="mWeek">周一 · 今天</span>
+      <button class="today-pill" id="mTodayBtn" type="button" hidden>回到今天</button>
       <span class="mpill" id="mPill">50%</span>
       <button class="mview" id="mViewBtn" type="button" aria-label="切换到列表视图">
         <span class="mview-bg" aria-hidden="true"></span>
@@ -76,8 +77,9 @@
       <button class="round-btn" id="prevDay" type="button" aria-label="前一天">
         <svg width="9" height="12" viewBox="0 0 9 12" fill="none"><path d="M7 1L2 6l5 5" stroke="#1D1D1F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <h1 class="ddate" id="dDate">10月19日</h1>
+      <h1 class="ddate" id="dDate" tabindex="0" role="button" aria-label="选择日期">10月19日</h1>
       <span class="dweek" id="dWeek">周一 · 今天</span>
+      <button class="today-pill" id="todayBtn" type="button" hidden>回到今天</button>
       <button class="round-btn" id="nextDay" type="button" aria-label="后一天">
         <svg width="9" height="12" viewBox="0 0 9 12" fill="none"><path d="M2 1l5 5-5 5" stroke="#1D1D1F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -101,7 +103,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>今日进度</h2>
+          <h2 id="rProgressTitle">今日进度</h2>
           <button class="link" type="button" data-soon>查看本周</button>
         </div>
         <div class="stat-row">
@@ -111,7 +113,7 @@
         <div class="bar"><i id="rBar" style="width:50%"></i></div>
         <div class="hairline"></div>
         <div class="meta3">
-          <div><b id="rSched">8h00</b><span>今日已安排</span></div>
+          <div><b id="rSched">8h00</b><span id="rSchedLabel">今日已安排</span></div>
           <div><b id="rLeft">4h30</b><span>待完成</span></div>
           <div><b id="rHigh">3 项</b><span>高优先级</span></div>
         </div>
@@ -156,6 +158,15 @@
 
       <div class="mfilter" id="mFilterWrap" role="tablist" aria-label="按状态筛选"></div>
 
+      <div class="mtools" id="mTools">
+        <span class="mtools-free" id="mFreeChip">空闲 2h30</span>
+        <div class="mtools-r">
+          <button class="link mtools-link" type="button" data-auto>自动排程</button>
+          <span class="mtools-sep" aria-hidden="true"></span>
+          <button class="link mtools-link link-mute" type="button" data-clear>一键清空</button>
+        </div>
+      </div>
+
       <section class="tl-card" id="mainCard">
         <header class="tl-head">
           <div class="tl-head-l">
@@ -164,7 +175,9 @@
           </div>
           <div class="tl-head-r">
             <span class="chip" id="freeChip">空闲 2h30</span>
-            <button class="link" type="button" id="autoBtn">自动排程</button>
+            <button class="link" type="button" id="autoBtn" data-auto>自动排程</button>
+            <span class="head-sep" aria-hidden="true"></span>
+            <button class="link link-mute" type="button" id="clearBtn" data-clear>一键清空</button>
           </div>
         </header>
         <div class="hairline" id="mainHairline"></div>

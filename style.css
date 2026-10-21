@@ -104,6 +104,11 @@ h1,h2,h3,p{margin:0;}
   transition:opacity .18s ease;
 }
 .link:active{opacity:.55;}
+.link-mute{color:var(--ink-2);}
+.link.danger{color:var(--high);font-weight:600;}
+.link:disabled{opacity:.32;pointer-events:none;}
+
+.head-sep{width:1px;height:11px;background:var(--line);flex:0 0 1px;}
 
 .muted{color:var(--ink-2);}
 .value{
@@ -172,8 +177,26 @@ h1,h2,h3,p{margin:0;}
   font-weight:600;
   letter-spacing:-.3px;
   color:var(--ink);
+  cursor:pointer;
+  transition:opacity .16s ease;
 }
+.ddate:hover{opacity:.62;}
+.ddate:focus-visible{outline:2px solid var(--blue-ring);outline-offset:3px;border-radius:6px;}
 .dweek{font-size:13px;color:var(--ink-2);}
+
+/* 非今日时出现的「回到今天」 */
+.today-pill{
+  font-size:11px;font-weight:500;
+  color:var(--blue);
+  background:var(--blue-soft);
+  border:0;border-radius:999px;
+  padding:5px 11px;
+  font-variant-numeric:tabular-nums;
+  transition:opacity .16s ease;
+}
+.today-pill:active{opacity:.6;}
+.today-pill[hidden]{display:none;}
+
 .dsub-r{display:flex;align-items:center;gap:12px;}
 
 .vseg{
@@ -369,6 +392,9 @@ h1,h2,h3,p{margin:0;}
   padding:7px 13px;border-radius:999px;
   font-variant-numeric:tabular-nums;
 }
+
+/* 移动端时间线工具条（桌面隐藏） */
+.mtools{display:none;}
 
 .tl-body{
   display:flex;flex-direction:column;gap:8px;
@@ -928,6 +954,22 @@ h1,h2,h3,p{margin:0;}
 }
 .tl-head{display:none;}
 #mainHairline{display:none;}
+
+/* 移动端工具条：空闲时长 + 自动排程 + 一键清空 */
+.mtools{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:2px 18px 10px;
+}
+.mtools-free{
+  font-size:11px;color:var(--ink-2);
+  background:var(--surface);
+  border:1px solid var(--line);
+  padding:5px 11px;border-radius:999px;
+  font-variant-numeric:tabular-nums;
+}
+.mtools-r{display:flex;align-items:center;gap:10px;}
+.mtools-link{font-size:11.5px;}
+.mtools-sep{width:1px;height:10px;background:var(--line);}
 .tl-body{padding:4px 18px 0;gap:6px;}
 .list-body{padding:4px 18px 0;gap:8px;}
 
@@ -999,6 +1041,7 @@ h1,h2,h3,p{margin:0;}
   .tl-body{padding:16px 0 0;gap:8px;}
   .list-body{padding:16px 0 0;gap:8px;}
   .mfilter{display:none;}
+  .mtools{display:none;}
 
   /* 桌面时间线尺寸 */
   .tl-row{height:calc(32px + var(--m,30) * 0.8px);gap:12px;}
@@ -1068,6 +1111,7 @@ h1,h2,h3,p{margin:0;}
 /* 移动端隐藏桌面专用元素 */
 @media (max-width:899px){
   .dnav,.dsub{display:none;}
+  .today-pill{font-size:10.5px;padding:4px 9px;}
 }
 
 /* 平板：隐藏左栏，主区铺满 */
