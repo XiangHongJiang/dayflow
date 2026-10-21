@@ -52,7 +52,7 @@
   <!-- ============ 移动端头部 ============ -->
   <div class="mhead">
     <div class="mhead-row">
-      <h1 class="mdate" id="mDate" tabindex="0" role="button" aria-label="选择日期">10月19日</h1>
+      <h1 class="mdate" id="mDate" tabindex="0" role="button" aria-label="选择日期" aria-haspopup="dialog" aria-expanded="false">10月19日</h1>
       <span class="mweek" id="mWeek">周一 · 今天</span>
       <button class="today-pill" id="mTodayBtn" type="button" hidden>回到今天</button>
       <span class="mpill" id="mPill">50%</span>
@@ -77,7 +77,7 @@
       <button class="round-btn" id="prevDay" type="button" aria-label="前一天">
         <svg width="9" height="12" viewBox="0 0 9 12" fill="none"><path d="M7 1L2 6l5 5" stroke="#1D1D1F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <h1 class="ddate" id="dDate" tabindex="0" role="button" aria-label="选择日期">10月19日</h1>
+      <h1 class="ddate" id="dDate" tabindex="0" role="button" aria-label="选择日期" aria-haspopup="dialog" aria-expanded="false">10月19日</h1>
       <span class="dweek" id="dWeek">周一 · 今天</span>
       <button class="today-pill" id="todayBtn" type="button" hidden>回到今天</button>
       <button class="round-btn" id="nextDay" type="button" aria-label="后一天">
@@ -192,7 +192,6 @@
   </button>
 </div>
 
-<input type="date" id="datePicker" class="sr-only" tabindex="-1" aria-hidden="true">
 
 <!-- ============ 新建 / 编辑 抽屉 ============ -->
 <div class="scrim" id="scrim"></div>
@@ -342,6 +341,31 @@
       <svg width="10" height="10" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       新增常用内容
     </button>
+  </div>
+</div>
+
+<!-- ============ 日期选择（居中弹窗） ============ -->
+<div class="scrim dscrim" id="dateScrim"></div>
+<div class="dsheet" id="dateSheet" role="dialog" aria-modal="true" aria-labelledby="dsMonth" aria-hidden="true">
+  <div class="ds-head">
+    <button class="ds-nav" id="dsPrev" type="button" aria-label="上个月">
+      <svg width="8" height="12" viewBox="0 0 9 12" fill="none" aria-hidden="true"><path d="M7 1L2 6l5 5" stroke="#1D1D1F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h2 class="ds-month" id="dsMonth">2026 年 10 月</h2>
+    <button class="ds-nav" id="dsNext" type="button" aria-label="下个月">
+      <svg width="8" height="12" viewBox="0 0 9 12" fill="none" aria-hidden="true"><path d="M2 1l5 5-5 5" stroke="#1D1D1F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <div class="ds-week" aria-hidden="true">
+    <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+  </div>
+
+  <div class="ds-grid" id="dsGrid" role="grid" aria-label="选择日期"></div>
+
+  <div class="ds-foot">
+    <button class="ds-today" id="dsToday" type="button">回到今天</button>
+    <button class="btn btn-plain ds-cancel" id="dsCancel" type="button">取消</button>
   </div>
 </div>
 

@@ -1083,9 +1083,16 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
+      if (dateSheet.classList.contains('show')) { closeDateSheet(); return; }
       if (mSheet.classList.contains('show')) { closeManage(); return; }
       if (qSheet.classList.contains('show')) { closeQuickSheet(); return; }
       if (drawer.classList.contains('show')) { closeDrawer(); return; }
+    }
+    if (dateSheet.classList.contains('show')) {
+      var step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+      if (step) { e.preventDefault(); moveDsFocus(step); return; }
+      if (e.key === 'PageUp') { e.preventDefault(); shiftMonth(-1); return; }
+      if (e.key === 'PageDown') { e.preventDefault(); shiftMonth(1); return; }
     }
     if (!drawer.classList.contains('show') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
       !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) {
@@ -1128,23 +1135,161 @@
   $$('[data-auto]').forEach(function (b) { b.addEventListener('click', autoSchedule); });
   $$('[data-clear]').forEach(function (b) { b.addEventListener('click', clearToday); });
 
-  /* 日期选择：点日期标题唤起原生日历，← → 键切换前一天 / 后一天 */
-  var datePicker = $('#datePicker');
-  function openPicker() {
-    datePicker.value = S.date;
-    if (datePicker.showPicker) { try { datePicker.showPicker(); return; } catch (err) { } }
-    datePicker.click();
+  /* ---------------- 日期选择：居中弹窗 ---------------- */
+
+  var dateSheet = $('#dateSheet'), dateScrim = $('#dateScrim');
+  var dsGrid = $('#dsGrid'), dsMonth = $('#dsMonth');
+  var dsCur = { y: 0, m: 0 };
+  var dsReturn = null;
+
+  function dsHasMap() {
+    var map = {};
+    (S.tasks || []).forEach(function (t) { if (t.date) map[t.date] = true; });
+    return map;
   }
+
+  function renderDsGrid() {
+    var y = dsCur.y, m = dsCur.m;
+    var today = todayKey();
+    var hasMap = dsHasMap();
+    dsMonth.textContent = y + ' 年 ' + (m + 1) + ' 月';
+
+    var offset = (new Date(y, m, 1).getDay() + 6) % 7;   // 周一为一周起点
+    var days = new Date(y, m + 1, 0).getDate();
+    var prevDays = new Date(y, m, 0).getDate();
+    var total = Math.ceil((offset + days) / 7) * 7;
+
+    var html = '';
+    for (var i = 0; i < total; i++) {
+      var n, key, out = false;
+      if (i < offset) {
+        n = prevDays - offset + i + 1;
+        key = dateKey(new Date(y, m - 1, n));
+        out = true;
+      } else if (i >= offset + days) {
+        n = i - offset - days + 1;
+        key = dateKey(new Date(y, m + 1, n));
+        out = true;
+      } else {
+        n = i - offset + 1;
+        key = dateKey(new Date(y, m, n));
+      }
+      var d = parseKey(key);
+      var cls = 'ds-day' + (out ? ' out' : '') + (key === today ? ' today' : '') +
+        (key === S.date ? ' sel' : '') + (hasMap[key] ? ' has' : '');
+      var label = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + WEEK[d.getDay()] +
+        (key === today ? '，今天' : '');
+      html += '<button class="' + cls + '" type="button" role="gridcell" data-ds-day="' + key + '"' +
+        ' aria-label="' + label + '" aria-selected="' + (key === S.date ? 'true' : 'false') + '"' +
+        (key === today ? ' aria-current="date"' : '') + '>' +
+        '<span class="ds-num">' + n + '</span>' +
+        (hasMap[key] ? '<i class="ds-dot" aria-hidden="true"></i>' : '') +
+        '</button>';
+    }
+    dsGrid.innerHTML = html;
+  }
+
+  function setDateExpanded(on) {
+    [el.mDate, el.dDate].forEach(function (n) { if (n) n.setAttribute('aria-expanded', on ? 'true' : 'false'); });
+  }
+
+  function openDateSheet() {
+    var d = parseKey(S.date);
+    dsCur.y = d.getFullYear();
+    dsCur.m = d.getMonth();
+    dsReturn = document.activeElement;
+    renderDsGrid();
+
+    dateSheet.classList.add('show');
+    dateSheet.setAttribute('aria-hidden', 'false');
+    dateScrim.classList.add('show');
+    document.body.classList.add('no-scroll');
+    setDateExpanded(true);
+
+    var sel = dsGrid.querySelector('.sel');
+    if (sel) setTimeout(function () { try { sel.focus({ preventScroll: true }); } catch (err) { } }, 130);
+  }
+
+  function closeDateSheet() {
+    if (!dateSheet.classList.contains('show')) return;
+    dateSheet.classList.remove('show');
+    dateSheet.setAttribute('aria-hidden', 'true');
+    dateScrim.classList.remove('show');
+    document.body.classList.remove('no-scroll');
+    setDateExpanded(false);
+    var back = dsReturn;
+    dsReturn = null;
+    if (back && back.focus) { try { back.focus({ preventScroll: true }); } catch (err) { } }
+  }
+
+  function pickDay(key) {
+    if (!key) return;
+    closeDateSheet();
+    if (key === S.date) return;
+    S.date = key;
+    ui.q = '';
+    var si = $('#mSearchInput');
+    if (si && si.value) si.value = '';
+    save();
+    renderAll();
+    toast('已切换到 ' + cnDate(parseKey(key)));
+  }
+
+  function shiftMonth(delta) {
+    var d = new Date(dsCur.y, dsCur.m + delta, 1);
+    dsCur.y = d.getFullYear();
+    dsCur.m = d.getMonth();
+    renderDsGrid();
+  }
+
+  function dsFocusKey() {
+    var a = document.activeElement;
+    if (a && a.dataset && a.dataset.dsDay) return a.dataset.dsDay;
+    return S.date;
+  }
+
+  function moveDsFocus(delta) {
+    var key = shiftKey(dsFocusKey(), delta);
+    var d = parseKey(key);
+    if (d.getFullYear() !== dsCur.y || d.getMonth() !== dsCur.m) {
+      dsCur.y = d.getFullYear();
+      dsCur.m = d.getMonth();
+      renderDsGrid();
+    }
+    var btn = dsGrid.querySelector('[data-ds-day="' + key + '"]');
+    if (btn) { try { btn.focus({ preventScroll: true }); } catch (err) { } }
+  }
+
   [el.dDate, el.mDate].forEach(function (node) {
     if (!node) return;
-    node.addEventListener('click', openPicker);
+    node.addEventListener('click', openDateSheet);
     node.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDateSheet(); }
     });
   });
-  datePicker.addEventListener('change', function () {
-    if (datePicker.value) { S.date = datePicker.value; ui.q = ''; $('#mSearchInput').value = ''; save(); renderAll(); }
+
+  dsGrid.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ds-day]');
+    if (b) pickDay(b.dataset.dsDay);
   });
+  $('#dsPrev').addEventListener('click', function () { shiftMonth(-1); });
+  $('#dsNext').addEventListener('click', function () { shiftMonth(1); });
+  $('#dsToday').addEventListener('click', function () { pickDay(todayKey()); });
+  $('#dsCancel').addEventListener('click', closeDateSheet);
+  dateScrim.addEventListener('click', closeDateSheet);
+
+  /* 移动端：在月历上左右滑动切换月份 */
+  var dsSwipe = null;
+  dsGrid.addEventListener('touchstart', function (e) {
+    dsSwipe = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }, { passive: true });
+  dsGrid.addEventListener('touchend', function (e) {
+    if (!dsSwipe) return;
+    var t = e.changedTouches[0];
+    var dx = t.clientX - dsSwipe.x, dy = t.clientY - dsSwipe.y;
+    dsSwipe = null;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) shiftMonth(dx < 0 ? 1 : -1);
+  }, { passive: true });
 
   function goToday() {
     if (S.date === todayKey()) return;
