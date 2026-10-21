@@ -301,8 +301,12 @@
     <div class="field">
       <div class="label-row">
         <span class="label">预计时长</span>
-        <span class="value" id="qDurLabel">60 分钟</span>
+        <span class="value" id="qDurLabel">10 分钟</span>
       </div>
+      <div class="dur-slider">
+        <input type="range" class="dur-range" id="qDurRange" min="0" max="600" step="1" value="10" aria-label="预计时长（分钟）">
+      </div>
+      <div class="dur-scale" aria-hidden="true"><span>0 分钟</span><span>10 小时</span></div>
       <div class="chips" id="qDurChips"></div>
     </div>
 

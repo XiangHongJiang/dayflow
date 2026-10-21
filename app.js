@@ -44,6 +44,10 @@
   var QUICK_MAX = 24;
   var PRESET_MAX = 12;
 
+  /* 预计时长滑块取值范围：0–600 分钟，默认 10，步长 1；
+     允许小数（来自外部数据），滑动本身只会产生整数 */
+  var DUR_MIN = 0, DUR_MAX = 600, DUR_DEFAULT = 10;
+
   var quickConfigLoaded = false;  // 外部配置是否已读取完毕（成功或失败）
   var quickSeeded = false;        // 当前清单是否由「默认值」填充（而非用户自己改过）
 
@@ -114,7 +118,7 @@
     }
     if (raw && Array.isArray(raw.quick)) {
       raw.quick.forEach(function (q) {
-        if (q && q.title) out.quick.push({ title: String(q.title).slice(0, 40), dur: clampNum(q.dur, 5, 720, 30), priority: PRIO_LABEL[q.priority] ? q.priority : 'low' });
+        if (q && q.title) out.quick.push({ title: String(q.title).slice(0, 40), dur: clampDur(q.dur, 30), priority: PRIO_LABEL[q.priority] ? q.priority : 'low' });
       });
     }
     if (!out.quick.length) {
@@ -183,11 +187,11 @@
 
       var raw = (item && (item.duration != null ? item.duration : item.dur));
       var dur = Number(raw);
-      if (!isFinite(dur) || dur <= 0) {
+      if (!isFinite(dur) || dur < 0) {
         if (raw != null) console.warn('[DayFlow] ' + label + ' 「' + title + '」的 duration 无效，已用 30 分钟');
         dur = 30;
       }
-      dur = Math.min(720, Math.max(5, Math.round(dur)));
+      dur = Math.min(DUR_MAX, Math.max(DUR_MIN, dur));
 
       var prio = item && item.priority;
       if (!PRIO_LABEL[prio]) {
@@ -863,14 +867,39 @@
 
   var qSheet = $('#qSheet'), qScrim = $('#qScrim'), qName = $('#qName');
   var qDurChips = $('#qDurChips'), qPrioChips = $('#qPrioChips');
-  var qDurLabel = $('#qDurLabel'), qErr = $('#qErr'), qPresets = $('#qPresets');
+  var qDurLabel = $('#qDurLabel'), qDurRange = $('#qDurRange');
+  var qErr = $('#qErr'), qPresets = $('#qPresets');
   var mSheet = $('#mSheet'), mScrim = $('#mScrim'), mList = $('#mList');
   var Q_DURS = [15, 30, 45, 60, 90, 120];
 
-  function durTextLong(min) {
-    if (min >= 60 && min % 60 === 0) return (min / 60) + ' 小时';
-    if (min >= 60) return Math.floor(min / 60) + ' 小时 ' + (min % 60) + ' 分钟';
-    return min + ' 分钟';
+  /* 预计时长：0–600 分钟，默认 10；允许小数（来自外部数据），
+     滑动本身只会产生整数（DUR_* 常量声明在文件顶部常量区） */
+
+  /* 钳制到合法区间；无值 / 非法值回退到默认 10 分钟 */
+  function clampDur(v, dflt) {
+    var n = Number(v);
+    if (!isFinite(n)) n = dflt == null ? DUR_DEFAULT : dflt;
+    return Math.min(DUR_MAX, Math.max(DUR_MIN, n));
+  }
+
+  /* 数值转文案：去掉多余的 0（10.0 → 10，10.5 → 10.5） */
+  function durNum(n) {
+    return String(Math.round(n * 10) / 10);
+  }
+
+  /* 时长格式化：
+     < 1 小时        → 「x 分钟」
+     ≥ 1 小时整     → 「x 小时」
+     ≥ 1 小时 + 零头 → 「x 小时 y 分钟」
+     边界：0 → 「0 分钟」，600 → 「10 小时」
+     无值 / NaN / 超范围 → 先钳制，非法回退默认 10 分钟 */
+  function fmtDurLabel(v) {
+    var n = clampDur(v);
+    if (n < 60) return durNum(n) + ' 分钟';
+    var h = Math.floor(n / 60);
+    var m = n - h * 60;
+    if (m === 0) return h + ' 小时';
+    return h + ' 小时 ' + durNum(m) + ' 分钟';
   }
 
   function prioDot(k) {
@@ -878,9 +907,9 @@
   }
 
   function openQuickSheet(preset) {
-    ui.quickDraft = { dur: 60, priority: 'low' };
+    ui.quickDraft = { dur: DUR_DEFAULT, priority: 'low' };
     if (preset) {
-      ui.quickDraft.dur = preset.dur;
+      ui.quickDraft.dur = clampDur(preset.dur);
       ui.quickDraft.priority = preset.priority;
     }
     qName.value = preset ? preset.title : '';
@@ -906,7 +935,10 @@
     var d = ui.quickDraft;
     if (!d) return;
 
-    qDurLabel.textContent = durTextLong(d.dur);
+    d.dur = clampDur(d.dur);
+    qDurLabel.textContent = fmtDurLabel(d.dur);
+    qDurRange.value = d.dur;
+    qDurRange.style.setProperty('--fill', (d.dur / DUR_MAX * 100) + '%');
 
     qDurChips.innerHTML = Q_DURS.map(function (v) {
       return '<button type="button" class="chip-opt' + (d.dur === v ? ' on' : '') + '" data-qdur="' + v + '">' +
@@ -926,6 +958,7 @@
   function saveQuickItem() {
     var d = ui.quickDraft;
     if (!d) return;
+    d.dur = clampDur(d.dur);
 
     var name = (qName.value || '').replace(/\s+/g, ' ').trim().slice(0, 20);
     if (!name) {
@@ -1288,6 +1321,17 @@
 
   /* 新建常用内容：弹层 */
   $('#qSave').addEventListener('click', saveQuickItem);
+
+  /* 时长滑块：滑动过程实时更新文案 / 轨道填充 / 快捷值选中态 */
+  qDurRange.addEventListener('input', function () {
+    if (!ui.quickDraft) return;
+    ui.quickDraft.dur = clampDur(qDurRange.value);
+    qDurLabel.textContent = fmtDurLabel(ui.quickDraft.dur);
+    qDurRange.style.setProperty('--fill', (ui.quickDraft.dur / DUR_MAX * 100) + '%');
+    $$('#qDurChips [data-qdur]').forEach(function (b) {
+      b.classList.toggle('on', +b.getAttribute('data-qdur') === ui.quickDraft.dur);
+    });
+  });
   $('#qCancel').addEventListener('click', closeQuickSheet);
   $('#qClose').addEventListener('click', closeQuickSheet);
   qScrim.addEventListener('click', closeQuickSheet);

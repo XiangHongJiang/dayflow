@@ -1477,3 +1477,53 @@ body.booting .list-item{animation:rise .26s cubic-bezier(.32,.72,0,1) both;}
   .ds-day .ds-num{width:32px;height:32px;font-size:13px;}
   .ds-week span{font-size:10.5px;}
 }
+
+/* =========================================================
+   预计时长滑块（新建 / 编辑常用内容弹层）
+   0–600 分钟，步长 1，拖动实时联动右侧文案
+   ========================================================= */
+
+.dur-slider{ padding:10px 0 2px; }
+
+.dur-range{
+  -webkit-appearance:none; appearance:none;
+  display:block; width:100%; height:28px; margin:0;
+  background:transparent; cursor:pointer;
+}
+.dur-range::-webkit-slider-runnable-track{
+  height:4px; border-radius:999px;
+  background:linear-gradient(to right, var(--blue) 0 var(--fill,1.67%), var(--line-2) var(--fill,1.67%) 100%);
+}
+.dur-range::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:22px; height:22px; margin-top:-9px;
+  border-radius:50%;
+  background:#fff;
+  border:1px solid var(--line-2);
+  box-shadow:0 1px 4px rgba(0,0,0,.16);
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+.dur-range:active::-webkit-slider-thumb{ border-color:var(--blue); }
+.dur-range:focus{ outline:none; }
+.dur-range:focus-visible::-webkit-slider-thumb{ border-color:var(--blue); box-shadow:0 0 0 4px var(--blue-ring); }
+.dur-range::-moz-range-track{
+  height:4px; border-radius:999px;
+  background:linear-gradient(to right, var(--blue) 0 var(--fill,1.67%), var(--line-2) var(--fill,1.67%) 100%);
+}
+.dur-range::-moz-range-progress{ height:4px; border-radius:999px; background:var(--blue); }
+.dur-range::-moz-range-thumb{
+  width:22px; height:22px; border-radius:50%;
+  background:#fff; border:1px solid var(--line-2);
+  box-shadow:0 1px 4px rgba(0,0,0,.16);
+}
+.dur-range:active::-moz-range-thumb,
+.dur-range:focus-visible::-moz-range-thumb{ border-color:var(--blue); box-shadow:0 0 0 4px var(--blue-ring); }
+
+.dur-scale{
+  display:flex; justify-content:space-between;
+  margin-top:2px;
+  font-size:10.5px; color:var(--ink-3);
+  font-variant-numeric:tabular-nums;
+}
+
+#qDurChips{ margin-top:12px; }
