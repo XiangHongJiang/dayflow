@@ -870,7 +870,8 @@
   var qDurLabel = $('#qDurLabel'), qDurRange = $('#qDurRange');
   var qErr = $('#qErr'), qPresets = $('#qPresets');
   var mSheet = $('#mSheet'), mScrim = $('#mScrim'), mList = $('#mList');
-  var Q_DURS = [15, 30, 45, 60, 90, 120];
+  /* 滑块下方的快速选择值（升序，点击即跳到该时长） */
+  var Q_DURS = [10, 15, 20, 30, 45, 60, 90, 120];
 
   /* 预计时长：0–600 分钟，默认 10；允许小数（来自外部数据），
      滑动本身只会产生整数（DUR_* 常量声明在文件顶部常量区） */
