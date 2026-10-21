@@ -96,7 +96,7 @@
   }
 
   function normalize(raw) {
-    var out = { tasks: [], quick: [], filter: 'all', view: 'timeline', date: todayKey(), seeded: true, seedv: SEED_VERSION };
+    var out = { tasks: [], quick: [], quickBase: null, filter: 'all', view: 'timeline', date: todayKey(), seeded: true, seedv: SEED_VERSION };
     if (raw && Array.isArray(raw.tasks)) {
       raw.tasks.forEach(function (t) {
         if (!t || !t.title) return;
@@ -123,6 +123,12 @@
     } else if (isLegacyQuick(out.quick)) {
       out.quick = copyQuick(QUICK_DEFAULT);
       quickSeeded = true;
+    }
+    /* 上次「从配置文件应用」的清单快照：
+       当前清单与它一致 = 用户没动过 → 下次读取配置时可直接同步 */
+    if (raw && Array.isArray(raw.quickBase)) {
+      var base = sanitizeQuickList(raw.quickBase, QUICK_MAX, '上次应用的默认清单');
+      out.quickBase = base.length ? base : null;
     }
     if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw.date)) out.date = raw.date;
     if (raw && (raw.filter === 'all' || raw.filter === 'todo' || raw.filter === 'done')) out.filter = raw.filter;
@@ -228,17 +234,45 @@
       });
   }
 
-  /* 应用外部配置：仅当当前清单是「默认种子」时才替换，用户自己的数据不动 */
+  /* 两份清单是否完全相同（顺序、标题、时长、优先级都一致） */
+  function sameQuick(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!a[i] || !b[i]) return false;
+      if (a[i].title !== b[i].title || a[i].dur !== b[i].dur || a[i].priority !== b[i].priority) return false;
+    }
+    return true;
+  }
+
+  /* 应用外部配置：
+     - 用户没动过清单（当前清单 == 上次应用的默认清单）→ 直接替换成文件里的最新内容，保存即生效
+     - 用户自己加过 / 删过 → 保留用户清单，只更新「恢复默认清单」的目标
+     - 文件读取失败 → 什么都不覆盖，仅保证界面画出当前清单 */
   function applyQuickConfig(cfg) {
+    var prevDefault = QUICK_DEFAULT;
+    var seeded = quickSeeded;
+
     if (cfg) {
       QUICK_DEFAULT = cfg.defaults;
       if (cfg.presets) Q_PRESETS = cfg.presets;
     }
-    if (!quickSeeded) return;
+
+    if (!cfg) { renderQuick(); return; }
+
+    /* 迁移兼容：老数据没有 quickBase，但清单恰好还是内置兜底内容时，同样视为「没动过」 */
+    var untouched = (!!S.quickBase && sameQuick(S.quick, S.quickBase)) || sameQuick(S.quick, prevDefault);
+    if (!seeded && !untouched) { renderQuick(); return; }
+
+    var changed = !sameQuick(S.quick, QUICK_DEFAULT);
+
     S.quick = copyQuick(QUICK_DEFAULT);
+    S.quickBase = copyQuick(QUICK_DEFAULT);
+    quickSeeded = false;   // 落地后即为「已同步」，后续改动以 quickBase 比对为准
     save();
     renderQuick();
     if (qSheet && qSheet.classList.contains('show') && ui.quickDraft) renderQuickSheet();
+
+    if (changed && !seeded) toast('常用内容已同步为配置文件的最新内容（' + S.quick.length + ' 条）');
   }
 
   /* 旧版默认写入的示例安排（用于一次性清空老用户数据） */
@@ -985,6 +1019,7 @@
     ui.confirmReset = false;
     clearTimeout(ui.resetTimer);
     S.quick = copyQuick(QUICK_DEFAULT);
+    S.quickBase = copyQuick(QUICK_DEFAULT);
     save();
     renderQuick();
     renderManageList();
@@ -1562,4 +1597,18 @@
 
   /* 常用内容默认清单：从 data/quick-defaults.json 读取（失败则用内置兜底） */
   loadQuickConfig().then(applyQuickConfig);
+
+  /* 改完 JSON 不用手动点「恢复默认」：切回页面时自动重读一次配置文件
+     （仅在清单没被手动改动过时才会替换，改动过的话保持用户数据） */
+  var lastCfgPull = 0;
+  function pullConfigAgain() {
+    var now = Date.now();
+    if (now - lastCfgPull < 1500) return;
+    lastCfgPull = now;
+    loadQuickConfig().then(applyQuickConfig);
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') pullConfigAgain();
+  });
+  window.addEventListener('focus', pullConfigAgain);
 })();

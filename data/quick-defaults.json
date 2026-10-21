@@ -3,20 +3,20 @@
   "updatedAt": "2026-10-21",
   "notes": "DayFlow 常用内容默认清单。字段说明：title=名称（不超过 40 字）；duration=预计时长（分钟，5-720）；priority=优先级，可选 high（高）/ mid（中）/ low（低）。修改保存后刷新页面即可生效；仅对尚未自定义过常用内容的用户生效，已有本地数据不会被覆盖。",
   "defaults": [
-    { "title": "晨间回顾与排程", "duration": 15, "priority": "low" },
-    { "title": "学习充电", "duration": 60, "priority": "mid" },
-    { "title": "深度工作", "duration": 90, "priority": "high" },
-    { "title": "团队同步", "duration": 60, "priority": "mid" },
-    { "title": "吃饭与休息", "duration": 45, "priority": "low" },
-    { "title": "娱乐放松", "duration": 45, "priority": "low" },
-    { "title": "午休", "duration": 30, "priority": "low" }
+    { "title": "起床", "duration": 15, "priority": "low" },
+    { "title": "早饭", "duration": 60, "priority": "mid" },
+    { "title": "上学", "duration": 90, "priority": "high" },
+    { "title": "午饭", "duration": 60, "priority": "mid" },
+    { "title": "午休", "duration": 45, "priority": "low" },
+    { "title": "放学", "duration": 30, "priority": "low" }
   ],
   "presets": [
-    { "title": "学习充电", "duration": 60, "priority": "mid" },
-    { "title": "娱乐放松", "duration": 45, "priority": "low" },
-    { "title": "午休", "duration": 30, "priority": "low" },
-    { "title": "吃饭", "duration": 45, "priority": "low" },
-    { "title": "运动", "duration": 45, "priority": "mid" },
-    { "title": "阅读", "duration": 30, "priority": "low" }
+    { "title": "收玩具", "duration": 10, "priority": "high" },
+    { "title": "吃饭", "duration": 20, "priority": "low" },
+    { "title": "控笔", "duration": 30, "priority": "mid" },
+    { "title": "洗漱", "duration": 35, "priority": "low" },
+    { "title": "阅读", "duration": 30, "priority": "high" },
+    { "title": "认字", "duration": 30, "priority": "mid" },
+    { "title": "自由时间", "duration": 20, "priority": "low" }
   ]
 }

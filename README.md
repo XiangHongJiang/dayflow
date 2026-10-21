@@ -19,7 +19,8 @@ python3 -m http.server 8791
 # 打开 http://127.0.0.1:8791
 ```
 
-直接双击 `index.html` 也能用，但 `manifest.json` 在 `file://` 下不生效。
+直接双击 `index.html` 也能用，但 `manifest.json` 和 `data/quick-defaults.json` 在 `file://`
+下都会被浏览器拦截——此时界面正常，常用内容会退回内置的 3 条兜底清单。
 
 ## 部署到 GitHub Pages
 
@@ -32,4 +33,6 @@ python3 -m http.server 8791
 ## 自定义常用内容默认清单
 
 常用内容的默认数据集中在 `data/quick-defaults.json`，直接编辑保存、刷新页面即可，
-无需改代码。字段格式、生效范围与回退机制见 [`data/README.md`](data/README.md)。
+无需改代码；切回页面时也会自动同步一次。若你已经在界面上改过常用内容，为了不误伤，
+文件不会覆盖它，需要「管理 → 恢复默认清单」手动应用。字段格式、生效范围与回退机制见
+[`data/README.md`](data/README.md)。
