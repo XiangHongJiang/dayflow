@@ -15,29 +15,38 @@
   var WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   var PRIO_LABEL = { high: '高', mid: '中', low: '低' };
 
-  var QUICK_DEFAULT = [
-    { title: '晨间回顾与排程', dur: 15, priority: 'low' },
+  /* ---------------- 常用内容默认数据 ----------------
+     唯一数据来源：data/quick-defaults.json（可自行编辑，无需改代码）
+     下面两组 QUICK_FALLBACK / PRESET_FALLBACK 只是「安全兜底」：
+     文件缺失、网络失败或 JSON 损坏时才会用到，正常情况不生效。
+     -------------------------------------------------- */
+  var QUICK_CONFIG_URL = './data/quick-defaults.json';
+  var QUICK_CONFIG_TIMEOUT = 3000;
+
+  var QUICK_FALLBACK = [
     { title: '学习充电', dur: 60, priority: 'mid' },
-    { title: '深度工作', dur: 90, priority: 'high' },
-    { title: '团队同步', dur: 60, priority: 'mid' },
     { title: '吃饭与休息', dur: 45, priority: 'low' },
-    { title: '娱乐放松', dur: 45, priority: 'low' },
-    { title: '午休', dur: 30, priority: 'low' }
+    { title: '深度工作', dur: 90, priority: 'high' }
   ];
+  var PRESET_FALLBACK = [
+    { title: '学习充电', dur: 60, priority: 'mid' },
+    { title: '娱乐放松', dur: 45, priority: 'low' },
+    { title: '阅读', dur: 30, priority: 'low' }
+  ];
+
+  /* 运行期实际使用的默认清单：配置读取成功后会被文件内容替换 */
+  var QUICK_DEFAULT = QUICK_FALLBACK.slice();
+  var Q_PRESETS = PRESET_FALLBACK.slice();
 
   /* 旧版默认值：命中时升级为新的默认清单（仅一次） */
   var QUICK_LEGACY = ['晨间回顾与排程', '深度工作', '团队同步', '处理邮件与消息', '日终整理与复盘'];
 
-  /* 新建常用内容时的快捷预设 */
-  var Q_PRESETS = [
-    { title: '学习充电', dur: 60, priority: 'mid' },
-    { title: '娱乐放松', dur: 45, priority: 'low' },
-    { title: '午休', dur: 30, priority: 'low' },
-    { title: '吃饭', dur: 45, priority: 'low' },
-    { title: '运动', dur: 45, priority: 'mid' },
-    { title: '阅读', dur: 30, priority: 'low' }
-  ];
   var QUICK_MAX = 24;
+  var PRESET_MAX = 12;
+
+  var quickConfigLoaded = false;  // 外部配置是否已读取完毕（成功或失败）
+  var quickSeeded = false;        // 当前清单是否由「默认值」填充（而非用户自己改过）
+
 
   var CHECK_SVG = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1.5 5.2l2.4 2.4L8.6 2.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   var PLUS_SVG = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="#7A7A7A" stroke-width="1.2" stroke-linecap="round"/></svg>';
@@ -109,9 +118,11 @@
       });
     }
     if (!out.quick.length) {
-      out.quick = QUICK_DEFAULT.map(function (q) { return { title: q.title, dur: q.dur, priority: q.priority }; });
+      out.quick = copyQuick(QUICK_DEFAULT);
+      quickSeeded = true;
     } else if (isLegacyQuick(out.quick)) {
-      out.quick = QUICK_DEFAULT.map(function (q) { return { title: q.title, dur: q.dur, priority: q.priority }; });
+      out.quick = copyQuick(QUICK_DEFAULT);
+      quickSeeded = true;
     }
     if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw.date)) out.date = raw.date;
     if (raw && (raw.filter === 'all' || raw.filter === 'todo' || raw.filter === 'done')) out.filter = raw.filter;
@@ -136,6 +147,100 @@
     return true;
   }
 
+  /* ---------------- 常用内容默认数据：读取与校验 ---------------- */
+
+  function copyQuick(list) {
+    return (list || []).map(function (q) {
+      return { title: q.title, dur: q.dur, priority: q.priority };
+    });
+  }
+
+  /* 把任意来源的清单清洗成内部结构 {title, dur, priority}
+     外部字段用 duration，同时也兼容内部字段 dur；逐项丢弃或纠正非法值 */
+  function sanitizeQuickList(list, max, label) {
+    if (!Array.isArray(list)) return [];
+    var out = [], seen = {};
+    list.forEach(function (item, i) {
+      if (item == null) return;
+      var title = typeof item === 'string' ? item : item.title;
+      title = String(title == null ? '' : title).trim().slice(0, 40);
+      if (!title) {
+        console.warn('[DayFlow] ' + label + ' 第 ' + (i + 1) + ' 项缺少 title，已跳过');
+        return;
+      }
+      var dup = title.toLowerCase();
+      if (seen[dup]) {
+        console.warn('[DayFlow] ' + label + ' 存在重名「' + title + '」，已跳过后一项');
+        return;
+      }
+      seen[dup] = true;
+
+      var raw = (item && (item.duration != null ? item.duration : item.dur));
+      var dur = Number(raw);
+      if (!isFinite(dur) || dur <= 0) {
+        if (raw != null) console.warn('[DayFlow] ' + label + ' 「' + title + '」的 duration 无效，已用 30 分钟');
+        dur = 30;
+      }
+      dur = Math.min(720, Math.max(5, Math.round(dur)));
+
+      var prio = item && item.priority;
+      if (!PRIO_LABEL[prio]) {
+        if (prio != null) console.warn('[DayFlow] ' + label + ' 「' + title + '」的 priority 无效，已用 low');
+        prio = 'low';
+      }
+      out.push({ title: title, dur: dur, priority: prio });
+    });
+    if (out.length > max) {
+      console.warn('[DayFlow] ' + label + ' 超过 ' + max + ' 条，仅保留前 ' + max + ' 条');
+      out = out.slice(0, max);
+    }
+    return out;
+  }
+
+  /* 读取 data/quick-defaults.json：
+     成功 → 覆盖运行期默认清单；失败 → 保留兜底清单，仅控制台告警，不影响使用 */
+  function loadQuickConfig() {
+    if (typeof fetch !== 'function') { quickConfigLoaded = true; return Promise.resolve(null); }
+
+    var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, QUICK_CONFIG_TIMEOUT) : 0;
+
+    return fetch(QUICK_CONFIG_URL, { cache: 'no-cache', signal: ctrl ? ctrl.signal : undefined })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (json) {
+        var defaults = sanitizeQuickList(json && (json.defaults || json.items || json.quick), QUICK_MAX, '默认常用内容');
+        if (!defaults.length) throw new Error('defaults 为空或格式不正确');
+        var presets = sanitizeQuickList(json && json.presets, PRESET_MAX, '快捷预设');
+        quickConfigLoaded = true;
+        return { defaults: defaults, presets: presets.length ? presets : null };
+      })
+      .catch(function (err) {
+        quickConfigLoaded = true;
+        console.warn('[DayFlow] 读取 ' + QUICK_CONFIG_URL + ' 失败，已回退到内置兜底清单：', err && err.message ? err.message : err);
+        return null;
+      })
+      .then(function (cfg) {
+        if (timer) clearTimeout(timer);
+        return cfg;
+      });
+  }
+
+  /* 应用外部配置：仅当当前清单是「默认种子」时才替换，用户自己的数据不动 */
+  function applyQuickConfig(cfg) {
+    if (cfg) {
+      QUICK_DEFAULT = cfg.defaults;
+      if (cfg.presets) Q_PRESETS = cfg.presets;
+    }
+    if (!quickSeeded) return;
+    S.quick = copyQuick(QUICK_DEFAULT);
+    save();
+    renderQuick();
+    if (qSheet && qSheet.classList.contains('show') && ui.quickDraft) renderQuickSheet();
+  }
+
   /* 旧版默认写入的示例安排（用于一次性清空老用户数据） */
   var DEMO_TITLES = ['晨间回顾与排程', '深度工作：季度复盘初稿', '处理邮件与消息', '午餐与散步',
     '产品周会', '与设计团队同步', '撰写复盘结论与行动项', '日终整理与复盘'];
@@ -153,7 +258,7 @@
         return normalize(data);
       }
     } catch (e) { /* 忽略损坏数据 */ }
-    return normalize({ tasks: [], quick: QUICK_DEFAULT.slice(), seeded: true, seedv: SEED_VERSION });
+    return normalize({ tasks: [], quick: [], seeded: true, seedv: SEED_VERSION });
   }
 
   function isDemoTaskSet(list) {
@@ -174,7 +279,7 @@
   }
 
   var S = load();
-  var ui = { editingId: null, draft: null, quickDraft: null, q: '', managing: false, confirmDelete: false, deleteTimer: 0, confirmClear: false, clearTimer: 0 };
+  var ui = { editingId: null, draft: null, quickDraft: null, q: '', managing: false, confirmDelete: false, deleteTimer: 0, confirmClear: false, clearTimer: 0, confirmReset: false, resetTimer: 0 };
 
   /* ---------------- 数据查询 ---------------- */
 
@@ -292,6 +397,9 @@
   /* ---------------- 渲染：常用内容 ---------------- */
 
   function renderQuick() {
+    /* 默认清单还在读文件：先不画，避免闪现兜底内容（用户自有清单不受影响） */
+    if (quickSeeded && !quickConfigLoaded) return;
+
     var managing = ui.managing;
 
     var rows = S.quick.map(function (q, i) {
@@ -307,6 +415,10 @@
 
     if (!managing && S.quick.length < QUICK_MAX) {
       rows += '<button type="button" class="quick-new" data-quick-new>' + PLUS_SVG + '新建常用内容</button>';
+    }
+    if (managing) {
+      rows += '<button type="button" class="quick-reset' + (ui.confirmReset ? ' armed' : '') + '" data-quick-reset>' +
+        (ui.confirmReset ? '再点一次恢复默认' : '恢复默认清单') + '</button>';
     }
     el.railQuick.innerHTML = rows;
 
@@ -850,7 +962,33 @@
         '<span class="ptag ' + q.priority + '"><i></i>' + p + '</span>' +
         '<button type="button" class="mdel" data-quick-rm="' + i + '" aria-label="移除 ' + esc(q.title) + '">' + X_SVG + '</button>' +
         '</div>';
-    }).join('');
+    }).join('') +
+      '<button type="button" class="mreset' + (ui.confirmReset ? ' armed' : '') + '" data-quick-reset>' +
+      (ui.confirmReset ? '再点一次恢复默认清单' : '恢复默认清单（读取配置文件）') + '</button>';
+  }
+
+  /* 把清单重置为 data/quick-defaults.json 的内容（需二次确认） */
+  function resetQuickDefaults() {
+    if (!ui.confirmReset) {
+      ui.confirmReset = true;
+      clearTimeout(ui.resetTimer);
+      ui.resetTimer = setTimeout(function () {
+        ui.confirmReset = false;
+        renderQuick();
+        renderManageList();
+      }, 3200);
+      toast('再点一次将恢复为默认清单');
+      renderQuick();
+      renderManageList();
+      return;
+    }
+    ui.confirmReset = false;
+    clearTimeout(ui.resetTimer);
+    S.quick = copyQuick(QUICK_DEFAULT);
+    save();
+    renderQuick();
+    renderManageList();
+    toast('已恢复默认清单（' + S.quick.length + ' 条）');
   }
 
   function removeQuick(i) {
@@ -966,7 +1104,7 @@
   /* ---------------- 全局事件 ---------------- */
 
   document.addEventListener('click', function (e) {
-    var el2 = e.target.closest('[data-filter],[data-view],[data-check],[data-edit],[data-gap],[data-soon],[data-quick-open],[data-quick-fill],[data-quick-del],[data-quick-rm],[data-quick-new],[data-qdur],[data-qprio],[data-qpreset],[data-manage],[data-dur],[data-dur-custom],[data-prio]');
+    var el2 = e.target.closest('[data-filter],[data-view],[data-check],[data-edit],[data-gap],[data-soon],[data-quick-open],[data-quick-fill],[data-quick-del],[data-quick-rm],[data-quick-new],[data-quick-reset],[data-qdur],[data-qprio],[data-qpreset],[data-manage],[data-dur],[data-dur-custom],[data-prio]');
     if (!el2) return;
     var d = el2.dataset;
 
@@ -975,6 +1113,7 @@
     if (d.view) { setView(d.view); return; }
     if (d.edit) { openDrawer(byId(d.edit), null); return; }
     if (d.quickNew !== undefined) { openQuickSheet(null); return; }
+    if (d.quickReset !== undefined) { resetQuickDefaults(); return; }
     if (d.qdur) {
       if (!ui.quickDraft) return;
       ui.quickDraft.dur = parseInt(d.qdur, 10);
@@ -1420,4 +1559,7 @@
   buildRuler();
   renderAll();
   setTimeout(function () { document.body.classList.remove('booting'); }, 700);
+
+  /* 常用内容默认清单：从 data/quick-defaults.json 读取（失败则用内置兜底） */
+  loadQuickConfig().then(applyQuickConfig);
 })();

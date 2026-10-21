@@ -28,3 +28,8 @@ python3 -m http.server 8791
 3. 等待约 1 分钟，访问 `https://<用户名>.github.io/<仓库名>/`
 
 所有资源均为相对路径，部署在子路径下无需改动。
+
+## 自定义常用内容默认清单
+
+常用内容的默认数据集中在 `data/quick-defaults.json`，直接编辑保存、刷新页面即可，
+无需改代码。字段格式、生效范围与回退机制见 [`data/README.md`](data/README.md)。

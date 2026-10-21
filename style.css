@@ -1150,6 +1150,19 @@ h1,h2,h3,p{margin:0;}
 .quick-item.managing{background:var(--soft);}
 .quick-item.managing .quick-add{opacity:1;}
 
+/* 管理态：恢复默认清单 */
+.quick-reset{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;margin-top:8px;padding:9px 8px;
+  border-radius:10px;
+  background:transparent;
+  border:1px dashed #D5D5DA;
+  font-size:12px;font-weight:500;color:var(--ink-3);
+  transition:background .16s ease,color .16s ease,border-color .16s ease;
+}
+.quick-reset:active{border-color:var(--blue);color:var(--blue);}
+.quick-reset.armed{border-color:var(--high);color:var(--high-tx);background:var(--high-bg);}
+
 /* 抽屉里的「新增」chip */
 .chip-add{
   background:transparent;
@@ -1253,6 +1266,19 @@ body.booting .list-item{animation:rise .26s cubic-bezier(.32,.72,0,1) both;}
 .mempty{font-size:13px;color:var(--ink-2);padding:30px 4px;text-align:center;}
 .mactions{justify-content:stretch;}
 .mactions .btn{flex:1 1 auto;}
+
+/* 管理弹层：恢复默认清单 */
+.mreset{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;margin-top:12px;min-height:44px;padding:10px 12px;
+  border-radius:12px;
+  border:1px dashed #D5D5DA;
+  background:transparent;
+  font-size:12.5px;color:var(--ink-2);
+  transition:background .16s ease,color .16s ease,border-color .16s ease;
+}
+.mreset:active{border-color:var(--blue);color:var(--blue);}
+.mreset.armed{border-color:var(--high);color:var(--high-tx);background:var(--high-bg);}
 
 @media (max-width:899px){
 
