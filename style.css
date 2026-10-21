@@ -58,7 +58,7 @@ body{
   line-height:1.45;
 }
 
-body.no-scroll{overflow:hidden;}
+body.no-scroll{overflow:hidden;overscroll-behavior:none;}
 
 button{font-family:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;}
 input,textarea{font-family:inherit;color:inherit;}
@@ -1218,3 +1218,110 @@ h1,h2,h3,p{margin:0;}
 }
 body.booting .tl-row,
 body.booting .list-item{animation:rise .26s cubic-bezier(.32,.72,0,1) both;}
+
+/* =========================================================
+   移动端 P0 优化
+   触控热区 / 短任务信息 / 键盘适配 / 常用内容管理
+   ========================================================= */
+
+*{-webkit-tap-highlight-color:transparent;}
+
+/* 抽屉「常用内容」行的管理入口：桌面已有左栏管理，故仅移动端显示 */
+.label-row-r{display:inline-flex;align-items:center;gap:10px;}
+.qm-link{display:none;}
+
+/* 管理常用内容 · 弹层 */
+.mlist{display:flex;flex-direction:column;padding:8px 0 4px;}
+.mrow{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 2px;border-radius:10px;
+}
+.mrow + .mrow{border-top:1px solid var(--line-2);}
+.mname{
+  flex:1 1 auto;min-width:0;
+  font-size:14px;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.mdel{
+  width:30px;height:30px;flex:0 0 30px;
+  display:grid;place-items:center;border-radius:50%;
+  color:var(--ink-3);background:var(--page);
+  transition:background .16s ease,color .16s ease;
+}
+.mdel:active{background:var(--high-bg);color:var(--high-tx);}
+.mdel svg{width:11px;height:11px;}
+.mempty{font-size:13px;color:var(--ink-2);padding:30px 4px;text-align:center;}
+.mactions{justify-content:stretch;}
+.mactions .btn{flex:1 1 auto;}
+
+@media (max-width:899px){
+
+  /* --- 触控热区：视觉尺寸不变，点击范围补到 44px --- */
+  .micon,.mview,.dr-close,.today-pill,.mdate,
+  .mtools-link,.mfilter .fseg-item,.check{position:relative;}
+
+  .micon::after,.mview::after,.dr-close::after{
+    content:"";position:absolute;left:50%;top:50%;
+    width:44px;height:44px;transform:translate(-50%,-50%);
+  }
+  .today-pill::after{content:"";position:absolute;inset:-12px -9px;}
+  .mdate::after{content:"";position:absolute;inset:-9px -7px;}
+  .mtools-link::after{
+    content:"";position:absolute;left:-3px;right:-3px;top:50%;
+    height:44px;transform:translateY(-50%);
+  }
+  .mfilter .fseg-item::after{content:"";position:absolute;inset:-6px 0;}
+  .check::after{
+    content:"";position:absolute;left:50%;top:50%;
+    width:38px;height:38px;transform:translate(-50%,-50%);
+    border-radius:50%;
+  }
+
+  .qm-link{
+    display:inline-flex;align-items:center;
+    min-height:26px;padding:0 4px;
+  }
+
+  /* --- 短任务：行高不低于 44px，并保留优先级 --- */
+  .tl-row:not(.gap-row){min-height:44px;}
+  .tl-row.gap-row{height:38px;}
+  .tl-card-in.short{min-height:44px;}
+  .short .ptag{display:inline-flex;}
+
+  /* --- 移动端字号下限（9px 不可读） --- */
+  .ptag{font-size:10px;}
+  .tc-dur{font-size:11px;}
+  .gap-card{font-size:11px;}
+
+  /* --- 输入框 16px，避免 iOS 聚焦时整页放大 --- */
+  .textarea{font-size:16px;line-height:22px;}
+
+  /* --- 抽屉：随键盘上移，底部操作条常驻 --- */
+  .drawer{
+    bottom:var(--kb,0px);
+    padding:0 18px 0;
+    max-height:92vh;
+    max-height:calc(var(--vvh, 100dvh) - 8px);
+    overscroll-behavior:contain;
+    transition:transform .34s cubic-bezier(.32,.72,0,1), bottom .2s ease;
+  }
+  .dr-actions{
+    position:sticky;bottom:0;z-index:3;
+    margin:0 -18px;
+    padding:12px 18px calc(14px + var(--safe-b));
+    background:var(--surface);
+    box-shadow:0 -1px 0 var(--line), 0 -14px 20px -16px rgba(29,29,31,.5);
+  }
+
+  /* --- 常用内容弹层同样跟随键盘 --- */
+  .qsheet{
+    bottom:var(--kb,0px);
+    max-height:90vh;
+    max-height:calc(var(--vvh, 100dvh) - 24px);
+    overscroll-behavior:contain;
+    transition:opacity .22s ease, transform .3s cubic-bezier(.32,.72,0,1), bottom .2s ease;
+  }
+
+  /* 底部留白补上安全区，最后一项不被 FAB 压住 */
+  .body{padding-bottom:calc(96px + var(--safe-b));}
+}

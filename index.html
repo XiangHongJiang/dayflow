@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="DayFlow">
@@ -259,7 +259,10 @@
     <div class="field">
       <div class="label-row">
         <span class="label">常用内容</span>
-        <span class="value muted">点击快速填充</span>
+        <span class="label-row-r">
+          <span class="value muted">点击快速填充</span>
+          <button class="link qm-link" id="quickManageM" type="button">管理</button>
+        </span>
       </div>
       <div class="chips" id="quickChips"></div>
     </div>
@@ -315,6 +318,30 @@
       <button class="btn btn-plain" id="qCancel" type="button">取消</button>
       <button class="btn btn-primary" id="qSave" type="button">添加到常用</button>
     </div>
+  </div>
+</div>
+
+<div class="scrim qscrim" id="mScrim"></div>
+<div class="qsheet msheet" id="mSheet" role="dialog" aria-modal="true" aria-labelledby="mTitle" aria-hidden="true">
+  <header class="qsheet-head">
+    <div class="qhead-l">
+      <h2 id="mTitle">管理常用内容</h2>
+      <p>移除后不影响已安排的日程</p>
+    </div>
+    <button class="dr-close" id="mClose" type="button" aria-label="关闭">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#1D1D1F" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </button>
+  </header>
+
+  <div class="hairline"></div>
+
+  <div class="mlist" id="mList"></div>
+
+  <div class="qactions mactions">
+    <button class="btn btn-plain" id="mAdd" type="button">
+      <svg width="10" height="10" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      新增常用内容
+    </button>
   </div>
 </div>
 

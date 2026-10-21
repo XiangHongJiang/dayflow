@@ -377,11 +377,12 @@
       '<div class="tl-axis"><i class="tl-dot"></i></div>';
 
     if (short) {
+      var showTag = strong || (isMobile() && !t.done && t.priority !== 'low');
       return '<div class="' + rowCls + '" style="--m:' + t.dur + '">' + head +
         '<div class="tl-card-in' + (t.done ? ' soft' : '') + ' short" data-edit="' + t.id + '" role="button" tabindex="0">' +
         check +
         '<span class="tc-title">' + esc(t.title) + '</span>' +
-        (strong ? '<span class="ptag high"><i></i>高</span>' : '') +
+        (showTag ? '<span class="ptag ' + t.priority + '"><i></i>' + p + '</span>' : '') +
         '<span class="tc-dur end">' + durText(t.dur, true) + '</span>' +
         '</div></div>';
     }
@@ -636,7 +637,8 @@
     scrim.classList.add('show');
     document.body.classList.add('no-scroll');
     setTimeout(function () {
-      if (!task) fTitle.focus({ preventScroll: true });
+      /* 移动端不自动聚焦：键盘会立刻弹起并把表单下半部分推出可视区 */
+      if (!task && !isMobile()) fTitle.focus({ preventScroll: true });
     }, 320);
   }
 
@@ -716,9 +718,10 @@
   var qSheet = $('#qSheet'), qScrim = $('#qScrim'), qName = $('#qName');
   var qDurChips = $('#qDurChips'), qPrioChips = $('#qPrioChips');
   var qDurLabel = $('#qDurLabel'), qErr = $('#qErr'), qPresets = $('#qPresets');
+  var mSheet = $('#mSheet'), mScrim = $('#mScrim'), mList = $('#mList');
   var Q_DURS = [15, 30, 45, 60, 90, 120];
 
-  function durText(min) {
+  function durTextLong(min) {
     if (min >= 60 && min % 60 === 0) return (min / 60) + ' 小时';
     if (min >= 60) return Math.floor(min / 60) + ' 小时 ' + (min % 60) + ' 分钟';
     return min + ' 分钟';
@@ -742,7 +745,7 @@
     qSheet.setAttribute('aria-hidden', 'false');
     qScrim.classList.add('show');
     document.body.classList.add('no-scroll');
-    setTimeout(function () { qName.focus(); qName.select(); }, 240);
+    if (!isMobile()) setTimeout(function () { qName.focus(); qName.select(); }, 240);
   }
 
   function closeQuickSheet() {
@@ -757,7 +760,7 @@
     var d = ui.quickDraft;
     if (!d) return;
 
-    qDurLabel.textContent = durText(d.dur);
+    qDurLabel.textContent = durTextLong(d.dur);
 
     qDurChips.innerHTML = Q_DURS.map(function (v) {
       return '<button type="button" class="chip-opt' + (d.dur === v ? ' on' : '') + '" data-qdur="' + v + '">' +
@@ -812,6 +815,51 @@
     renderQuick();
     closeQuickSheet();
     toast('已添加「' + name + '」到常用内容');
+  }
+
+  /* ---------------- 管理常用内容（移动端入口） ---------------- */
+
+  function openManage() {
+    renderManageList();
+    mSheet.classList.add('show');
+    mSheet.setAttribute('aria-hidden', 'false');
+    mScrim.classList.add('show');
+    document.body.classList.add('no-scroll');
+  }
+
+  function closeManage() {
+    mSheet.classList.remove('show');
+    mSheet.setAttribute('aria-hidden', 'true');
+    mScrim.classList.remove('show');
+    if (!drawer.classList.contains('show') && !qSheet.classList.contains('show')) {
+      document.body.classList.remove('no-scroll');
+    }
+  }
+
+  function renderManageList() {
+    if (!mList) return;
+    if (!S.quick.length) {
+      mList.innerHTML = '<p class="mempty">还没有常用内容，点下方按钮添加一条</p>';
+      return;
+    }
+    mList.innerHTML = S.quick.map(function (q, i) {
+      var p = PRIO_LABEL[q.priority] || '低';
+      return '<div class="mrow">' +
+        '<span class="quick-dur">' + q.dur + 'm</span>' +
+        '<span class="mname">' + esc(q.title) + '</span>' +
+        '<span class="ptag ' + q.priority + '"><i></i>' + p + '</span>' +
+        '<button type="button" class="mdel" data-quick-rm="' + i + '" aria-label="移除 ' + esc(q.title) + '">' + X_SVG + '</button>' +
+        '</div>';
+    }).join('');
+  }
+
+  function removeQuick(i) {
+    var removed = S.quick.splice(i, 1)[0];
+    if (!removed) return;
+    save();
+    renderQuick();
+    renderManageList();
+    toast('已移除「' + removed.title + '」');
   }
 
   function showError(msg) {
@@ -918,7 +966,7 @@
   /* ---------------- 全局事件 ---------------- */
 
   document.addEventListener('click', function (e) {
-    var el2 = e.target.closest('[data-filter],[data-view],[data-check],[data-edit],[data-gap],[data-soon],[data-quick-open],[data-quick-fill],[data-quick-del],[data-quick-new],[data-qdur],[data-qprio],[data-qpreset],[data-manage],[data-dur],[data-dur-custom],[data-prio]');
+    var el2 = e.target.closest('[data-filter],[data-view],[data-check],[data-edit],[data-gap],[data-soon],[data-quick-open],[data-quick-fill],[data-quick-del],[data-quick-rm],[data-quick-new],[data-qdur],[data-qprio],[data-qpreset],[data-manage],[data-dur],[data-dur-custom],[data-prio]');
     if (!el2) return;
     var d = el2.dataset;
 
@@ -969,6 +1017,7 @@
       toast('已移除「' + (removed ? removed.title : '') + '」');
       return;
     }
+    if (d.quickRm !== undefined) { removeQuick(+d.quickRm); return; }
     if (d.quickFill) {
       var qf = S.quick[+d.quickFill];
       if (qf && ui.draft) {
@@ -1034,6 +1083,7 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
+      if (mSheet.classList.contains('show')) { closeManage(); return; }
       if (qSheet.classList.contains('show')) { closeQuickSheet(); return; }
       if (drawer.classList.contains('show')) { closeDrawer(); return; }
     }
@@ -1060,6 +1110,15 @@
   $('#qCancel').addEventListener('click', closeQuickSheet);
   $('#qClose').addEventListener('click', closeQuickSheet);
   qScrim.addEventListener('click', closeQuickSheet);
+
+  /* 管理常用内容：弹层（移动端从抽屉进入） */
+  $('#quickManageM').addEventListener('click', openManage);
+  $('#mClose').addEventListener('click', closeManage);
+  mScrim.addEventListener('click', closeManage);
+  $('#mAdd').addEventListener('click', function () {
+    closeManage();
+    openQuickSheet(null);
+  });
   qName.addEventListener('input', function () {
     if (qErr.classList.contains('show') && qName.value.trim()) qErr.classList.remove('show');
   });
@@ -1180,6 +1239,21 @@
     save();
     renderAll();
     toast('已按空档重排 ' + todo.length + ' 项');
+  }
+
+  /* iOS 软键盘：可视区高度与键盘占位写入 CSS 变量，底部弹层跟随上移 */
+  function syncViewport() {
+    var vv = window.visualViewport;
+    if (!vv) return;
+    var kb = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+    var root = document.documentElement;
+    root.style.setProperty('--vvh', vv.height + 'px');
+    root.style.setProperty('--kb', kb + 'px');
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewport);
+    window.visualViewport.addEventListener('scroll', syncViewport);
+    syncViewport();
   }
 
   /* 响应式重渲染 */
