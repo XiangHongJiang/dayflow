@@ -303,11 +303,17 @@
         <span class="label">预计时长</span>
         <span class="value" id="qDurLabel">10 分钟</span>
       </div>
-      <div class="dur-slider">
-        <input type="range" class="dur-range" id="qDurRange" min="0" max="600" step="1" value="10" aria-label="预计时长（分钟）">
-      </div>
-      <div class="dur-scale" aria-hidden="true"><span>0 分钟</span><span>10 小时</span></div>
       <div class="chips" id="qDurChips"></div>
+      <div class="dur-step" id="qDurStep" hidden>
+        <button type="button" class="dur-step-btn" id="qDurMinus" aria-label="减少 5 分钟">
+          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" aria-hidden="true"><path d="M1 1h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+        <span class="dur-step-val" id="qDurStepVal" aria-live="polite">10 分钟</span>
+        <button type="button" class="dur-step-btn" id="qDurPlus" aria-label="增加 5 分钟">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <p class="dur-step-hint" id="qDurHint" hidden>步长 5 分钟 · 长按连续调整</p>
     </div>
 
     <div class="field">

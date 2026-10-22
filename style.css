@@ -1479,51 +1479,53 @@ body.booting .list-item{animation:rise .26s cubic-bezier(.32,.72,0,1) both;}
 }
 
 /* =========================================================
-   预计时长滑块（新建 / 编辑常用内容弹层）
-   0–600 分钟，步长 1，拖动实时联动右侧文案
+   预计时长：预设卡片 + 自定义步进器
+   常用值一键命中；非预设值走「自定义」的 −/+ 微调（步长 5，长按连发）
    ========================================================= */
 
-.dur-slider{ padding:10px 0 2px; }
+.dur-step{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; margin-top:10px; padding:6px;
+  background:var(--soft);
+  border:1px solid var(--line);
+  border-radius:var(--r-inner);
+}
+.dur-step[hidden]{ display:none; }
 
-.dur-range{
-  -webkit-appearance:none; appearance:none;
-  display:block; width:100%; height:28px; margin:0;
-  background:transparent; cursor:pointer;
+.dur-step-btn{
+  flex:0 0 auto;
+  width:44px; height:44px;
+  display:grid; place-items:center;
+  border-radius:var(--r-sm);
+  background:var(--surface);
+  border:1px solid var(--card-line);
+  color:var(--ink);
+  touch-action:manipulation;
+  transition:background .15s ease, border-color .15s ease, opacity .15s ease;
 }
-.dur-range::-webkit-slider-runnable-track{
-  height:4px; border-radius:999px;
-  background:linear-gradient(to right, var(--blue) 0 var(--fill,1.67%), var(--line-2) var(--fill,1.67%) 100%);
-}
-.dur-range::-webkit-slider-thumb{
-  -webkit-appearance:none;
-  width:22px; height:22px; margin-top:-9px;
-  border-radius:50%;
-  background:#fff;
-  border:1px solid var(--line-2);
-  box-shadow:0 1px 4px rgba(0,0,0,.16);
-  transition:border-color .15s ease, box-shadow .15s ease;
-}
-.dur-range:active::-webkit-slider-thumb{ border-color:var(--blue); }
-.dur-range:focus{ outline:none; }
-.dur-range:focus-visible::-webkit-slider-thumb{ border-color:var(--blue); box-shadow:0 0 0 4px var(--blue-ring); }
-.dur-range::-moz-range-track{
-  height:4px; border-radius:999px;
-  background:linear-gradient(to right, var(--blue) 0 var(--fill,1.67%), var(--line-2) var(--fill,1.67%) 100%);
-}
-.dur-range::-moz-range-progress{ height:4px; border-radius:999px; background:var(--blue); }
-.dur-range::-moz-range-thumb{
-  width:22px; height:22px; border-radius:50%;
-  background:#fff; border:1px solid var(--line-2);
-  box-shadow:0 1px 4px rgba(0,0,0,.16);
-}
-.dur-range:active::-moz-range-thumb,
-.dur-range:focus-visible::-moz-range-thumb{ border-color:var(--blue); box-shadow:0 0 0 4px var(--blue-ring); }
+.dur-step-btn:active{ background:var(--page); border-color:var(--ink-5); }
+.dur-step-btn:focus-visible{ outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-ring); }
+.dur-step-btn[disabled]{ opacity:.32; pointer-events:none; }
 
-.dur-scale{
-  display:flex; justify-content:space-between;
-  margin-top:2px;
-  font-size:10.5px; color:var(--ink-3);
+.dur-step-val{
+  flex:1 1 auto; text-align:center;
+  font-size:14px; font-weight:600; letter-spacing:-.01em;
+  color:var(--ink);
   font-variant-numeric:tabular-nums;
 }
 
-#qDurChips{ margin-top:12px; }
+.dur-step-hint{
+  margin:8px 0 0; text-align:center;
+  font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.01em;
+}
+.dur-step-hint[hidden]{ display:none; }
+
+.chip-opt.chip-custom{ border-style:dashed; border-color:var(--ink-5); color:var(--ink-2); }
+.chip-opt.chip-custom.on{ border-style:solid; }
+
+/* 自定义 chip：撑满最后一行，命中区更大、视觉上区分于预设值 */
+#qDurChips .chip-custom{ flex:1 1 auto; min-height:36px; }
+
+/* 自定义 chip：撑满最后一行，命中区更大、视觉上区分于预设值 */
+#qDurChips .chip-custom{ flex:1 1 auto; min-height:36px; }

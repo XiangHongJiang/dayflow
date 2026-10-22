@@ -317,7 +317,7 @@
   }
 
   var S = load();
-  var ui = { editingId: null, draft: null, quickDraft: null, q: '', managing: false, confirmDelete: false, deleteTimer: 0, confirmClear: false, clearTimer: 0, confirmReset: false, resetTimer: 0 };
+  var ui = { editingId: null, draft: null, quickDraft: null, durCustom: false, q: '', managing: false, confirmDelete: false, deleteTimer: 0, confirmClear: false, clearTimer: 0, confirmReset: false, resetTimer: 0 };
 
   /* ---------------- 数据查询 ---------------- */
 
@@ -867,11 +867,13 @@
 
   var qSheet = $('#qSheet'), qScrim = $('#qScrim'), qName = $('#qName');
   var qDurChips = $('#qDurChips'), qPrioChips = $('#qPrioChips');
-  var qDurLabel = $('#qDurLabel'), qDurRange = $('#qDurRange');
-  var qErr = $('#qErr'), qPresets = $('#qPresets');
+  var qDurLabel = $('#qDurLabel'), qErr = $('#qErr'), qPresets = $('#qPresets');
+  var qDurStep = $('#qDurStep'), qDurStepVal = $('#qDurStepVal');
+  var qDurMinus = $('#qDurMinus'), qDurPlus = $('#qDurPlus'), qDurHint = $('#qDurHint');
   var mSheet = $('#mSheet'), mScrim = $('#mScrim'), mList = $('#mList');
   /* 滑块下方的快速选择值（升序，点击即跳到该时长） */
   var Q_DURS = [10, 15, 20, 30, 45, 60, 90, 120];
+  var DUR_STEP = 5;   // 自定义微调步长（分钟）
 
   /* 预计时长：0–600 分钟，默认 10；允许小数（来自外部数据），
      滑动本身只会产生整数（DUR_* 常量声明在文件顶部常量区） */
@@ -909,6 +911,7 @@
 
   function openQuickSheet(preset) {
     ui.quickDraft = { dur: DUR_DEFAULT, priority: 'low' };
+    ui.durCustom = false;
     if (preset) {
       ui.quickDraft.dur = clampDur(preset.dur);
       ui.quickDraft.priority = preset.priority;
@@ -937,14 +940,18 @@
     if (!d) return;
 
     d.dur = clampDur(d.dur);
-    qDurLabel.textContent = fmtDurLabel(d.dur);
-    qDurRange.value = d.dur;
-    qDurRange.style.setProperty('--fill', (d.dur / DUR_MAX * 100) + '%');
 
     qDurChips.innerHTML = Q_DURS.map(function (v) {
-      return '<button type="button" class="chip-opt' + (d.dur === v ? ' on' : '') + '" data-qdur="' + v + '">' +
+      return '<button type="button" class="chip-opt" data-qdur="' + v + '">' +
         (v >= 60 ? (v / 60) + ' 小时' : v + ' 分钟') + '</button>';
-    }).join('');
+    }).join('') +
+      '<button type="button" class="chip-opt chip-custom" data-qdur-custom aria-expanded="false">＋ 自定义</button>';
+
+    /* 自定义步进器：只有展开时才占位 */
+    qDurStep.hidden = !ui.durCustom;
+    qDurHint.hidden = !ui.durCustom;
+
+    paintDur();
 
     qPrioChips.innerHTML = ['low', 'mid', 'high'].map(function (k) {
       return '<button type="button" class="chip-opt prio-' + k + (d.priority === k ? ' on' : '') + '" data-qprio="' + k + '">' +
@@ -954,6 +961,28 @@
     qPresets.innerHTML = Q_PRESETS.map(function (p, i) {
       return '<button type="button" class="qpreset" data-qpreset="' + i + '">' + esc(p.title) + ' · ' + p.dur + 'm</button>';
     }).join('');
+  }
+
+  /* 只刷新时长相关状态（文案 / 步进器 / 选中态），不重建 DOM：
+     长按连发时每 80ms 调一次，避免反复重绘 chips */
+  function paintDur() {
+    var d = ui.quickDraft;
+    if (!d) return;
+
+    var txt = fmtDurLabel(d.dur);
+    qDurLabel.textContent = txt;
+    qDurStepVal.textContent = txt;
+    qDurMinus.disabled = d.dur <= DUR_MIN;
+    qDurPlus.disabled = d.dur >= DUR_MAX;
+
+    $$('#qDurChips [data-qdur]').forEach(function (b) {
+      b.classList.toggle('on', +b.getAttribute('data-qdur') === d.dur);
+    });
+    var cc = $('#qDurChips [data-qdur-custom]');
+    if (cc) {
+      cc.classList.toggle('on', ui.durCustom);
+      cc.setAttribute('aria-expanded', ui.durCustom ? 'true' : 'false');
+    }
   }
 
   function saveQuickItem() {
@@ -1173,7 +1202,7 @@
   /* ---------------- 全局事件 ---------------- */
 
   document.addEventListener('click', function (e) {
-    var el2 = e.target.closest('[data-filter],[data-view],[data-check],[data-edit],[data-gap],[data-soon],[data-quick-open],[data-quick-fill],[data-quick-del],[data-quick-rm],[data-quick-new],[data-quick-reset],[data-qdur],[data-qprio],[data-qpreset],[data-manage],[data-dur],[data-dur-custom],[data-prio]');
+    var el2 = e.target.closest('[data-filter],[data-view],[data-check],[data-edit],[data-gap],[data-soon],[data-quick-open],[data-quick-fill],[data-quick-del],[data-quick-rm],[data-quick-new],[data-quick-reset],[data-qdur],[data-qdur-custom],[data-qprio],[data-qpreset],[data-manage],[data-dur],[data-dur-custom],[data-prio]');
     if (!el2) return;
     var d = el2.dataset;
 
@@ -1183,9 +1212,16 @@
     if (d.edit) { openDrawer(byId(d.edit), null); return; }
     if (d.quickNew !== undefined) { openQuickSheet(null); return; }
     if (d.quickReset !== undefined) { resetQuickDefaults(); return; }
+    if (d.qdurCustom !== undefined) {
+      if (!ui.quickDraft) return;
+      ui.durCustom = !ui.durCustom;
+      renderQuickSheet();
+      return;
+    }
     if (d.qdur) {
       if (!ui.quickDraft) return;
       ui.quickDraft.dur = parseInt(d.qdur, 10);
+      ui.durCustom = false;   // 选回预设即收起微调
       qErr.classList.remove('show');
       renderQuickSheet();
       return;
@@ -1323,16 +1359,53 @@
   /* 新建常用内容：弹层 */
   $('#qSave').addEventListener('click', saveQuickItem);
 
-  /* 时长滑块：滑动过程实时更新文案 / 轨道填充 / 快捷值选中态 */
-  qDurRange.addEventListener('input', function () {
+  /* 自定义步进器：单击 ±5 分钟；按住 400ms 后连发并逐级加速
+     （<1.2s 每次 5 分钟 → <2.4s 每次 15 → 之后每次 30），到边界自动停 */
+  function stepDur(dir, step) {
     if (!ui.quickDraft) return;
-    ui.quickDraft.dur = clampDur(qDurRange.value);
-    qDurLabel.textContent = fmtDurLabel(ui.quickDraft.dur);
-    qDurRange.style.setProperty('--fill', (ui.quickDraft.dur / DUR_MAX * 100) + '%');
-    $$('#qDurChips [data-qdur]').forEach(function (b) {
-      b.classList.toggle('on', +b.getAttribute('data-qdur') === ui.quickDraft.dur);
+    var next = clampDur(ui.quickDraft.dur + dir * (step || DUR_STEP));
+    if (next === ui.quickDraft.dur) return;
+    ui.quickDraft.dur = next;
+    paintDur();
+  }
+
+  function bindStepBtn(btn, dir) {
+    var holdTimer = 0, repeatTimer = 0, startedAt = 0;
+
+    function stop() {
+      clearTimeout(holdTimer);
+      clearInterval(repeatTimer);
+      holdTimer = repeatTimer = 0;
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+    }
+
+    function tick() {
+      var held = Date.now() - startedAt;
+      stepDur(dir, held > 2400 ? 30 : held > 1200 ? 15 : DUR_STEP);
+    }
+
+    btn.addEventListener('pointerdown', function (e) {
+      if (btn.disabled) return;
+      e.preventDefault();
+      stop();
+      startedAt = Date.now();
+      stepDur(dir);                                  // 先响应一次，无需等待
+      holdTimer = setTimeout(function () {
+        repeatTimer = setInterval(tick, 80);
+      }, 400);
+      window.addEventListener('pointerup', stop);
+      window.addEventListener('pointercancel', stop);
     });
-  });
+
+    /* 键盘（Enter / 空格）触发的是 click，没有 pointerdown */
+    btn.addEventListener('click', function (e) {
+      if (e.detail === 0) stepDur(dir);
+    });
+  }
+
+  bindStepBtn(qDurMinus, -1);
+  bindStepBtn(qDurPlus, 1);
   $('#qCancel').addEventListener('click', closeQuickSheet);
   $('#qClose').addEventListener('click', closeQuickSheet);
   qScrim.addEventListener('click', closeQuickSheet);
